@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Copy, Trash2, ChevronDown, ChevronRight, Search, Download, Upload, FilePlus2, FileSpreadsheet, ArrowUpDown, Hash } from 'lucide-react';
+import { Plus, Copy, Trash2, ChevronDown, ChevronRight, Search, Download, Upload, FilePlus2, FileSpreadsheet, ArrowUpDown, Hash, Eye } from 'lucide-react';
+import { ComponentDetails } from '@/components/ComponentDetails';
 
 const BLANK = { description: '', brand: '', part_no: '', supplier: '', quantity: 1, rate: 0, install_hrs: 0, wiring_hrs: 0 };
 
@@ -20,6 +21,7 @@ export default function EquipmentCosting() {
   const canEdit = auth.user?.role !== 'viewer';
   const [items, setItems] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  const [detailId, setDetailId] = useState(null);
   const [expanded, setExpanded] = useState(new Set());
   const [q, setQ] = useState('');
   const [sort, setSort] = useState({ key: 'item_no', dir: 'asc' });
@@ -185,7 +187,8 @@ export default function EquipmentCosting() {
               )}
               {filtered.map((it) => (
                 <React.Fragment key={it.id}>
-                  <tr className="border-t border-slate-200 hover:bg-slate-50" data-testid={`row-${it.item_no}`}>
+                  <tr className="border-t border-slate-200 hover:bg-slate-50 cursor-pointer" data-testid={`row-${it.item_no}`}
+                      onClick={(e) => { if (!e.target.closest('input,button')) setDetailId(it.id); }}>
                     <td className="px-2 py-2 text-slate-400">
                       <button onClick={() => toggle(it.id)} data-testid={`expand-${it.item_no}`}>
                         {expanded.has(it.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -200,12 +203,15 @@ export default function EquipmentCosting() {
                     <td className="px-3 py-2"><CellInput disabled={!canEdit} type="number" value={it.rate} onCommit={(v) => updateItem(it.id, { rate: parseFloat(v) || 0 })} align="right" /></td>
                     <td className="px-3 py-2 fin text-right font-semibold text-slate-900">{fmtAUD(it.selling_price)}</td>
                     <td className="px-2 py-2">
-                      {canEdit && (
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => dup(it.id)} className="text-slate-400 hover:text-slate-900 p-1" title="Duplicate" data-testid={`dup-${it.item_no}`}><Copy className="h-4 w-4" /></button>
-                          <button onClick={() => del(it.id)} className="text-slate-400 hover:text-red-600 p-1" title="Delete" data-testid={`del-${it.item_no}`}><Trash2 className="h-4 w-4" /></button>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => setDetailId(it.id)} className="text-slate-400 hover:text-slate-900 p-1" title="View details" data-testid={`view-${it.item_no}`}><Eye className="h-4 w-4" /></button>
+                        {canEdit && (
+                          <>
+                            <button onClick={() => dup(it.id)} className="text-slate-400 hover:text-slate-900 p-1" title="Duplicate" data-testid={`dup-${it.item_no}`}><Copy className="h-4 w-4" /></button>
+                            <button onClick={() => del(it.id)} className="text-slate-400 hover:text-red-600 p-1" title="Delete" data-testid={`del-${it.item_no}`}><Trash2 className="h-4 w-4" /></button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                   {expanded.has(it.id) && (
@@ -233,6 +239,8 @@ export default function EquipmentCosting() {
           </table>
         </div>
       </Card>
+
+      <ComponentDetails itemId={detailId} onClose={() => setDetailId(null)} />
 
       <Dialog open={showNew} onOpenChange={setShowNew}>
         <DialogContent>

@@ -292,6 +292,27 @@ async def update_item(iid: str, it: EquipmentItem, user: dict = Depends(require_
     proj = await db.projects.find_one({'id': doc['project_id']}, {'_id': 0})
     return calc_item(doc, proj['settings'])
 
+@api.get("/items/{iid}/details")
+async def item_details(iid: str, user: dict = Depends(current_user)):
+    it = await db.items.find_one({'id': iid}, {'_id': 0})
+    if not it:
+        raise HTTPException(404, "Item not found")
+    projects = {p['id']: p for p in await db.projects.find({}, {'_id': 0}).to_list(1000)}
+    proj = projects.get(it['project_id'])
+    part = (it.get('part_no') or '').strip()
+    match = {'part_no': part} if part else {'description': it.get('description', '')}
+    usage = []
+    for u in await db.items.find(match, {'_id': 0}).sort('item_no', 1).to_list(5000):
+        p = projects.get(u['project_id'])
+        if not p:
+            continue
+        c = calc_item(u, p['settings'])
+        usage.append({'item_id': u['id'], 'project_id': p['id'], 'project_name': p['name'],
+                      'item_no': u['item_no'], 'quantity': u['quantity'], 'selling_price': c['selling_price']})
+    return {'item': calc_item(it, proj['settings']), 'project_name': proj['name'],
+            'matched_by': 'part_no' if part else 'description', 'usage': usage}
+
+
 @api.delete("/items/{iid}")
 async def delete_item(iid: str, user: dict = Depends(require_role('admin', 'estimator'))):
     await db.items.delete_one({'id': iid})
