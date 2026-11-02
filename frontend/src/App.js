@@ -14,6 +14,7 @@ import Quotation from '@/pages/Quotation';
 import Reports from '@/pages/Reports';
 import Users from '@/pages/Users';
 import Library from '@/pages/Library';
+import ComponentViewer from '@/pages/ComponentViewer';
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -36,6 +37,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Marketing />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/component-viewer" element={<ComponentViewer />} />
           <Route
             path="/app"
             element={<Protected><ProjectProvider><Shell /></ProjectProvider></Protected>}

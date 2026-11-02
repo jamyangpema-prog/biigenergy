@@ -17,6 +17,7 @@
 - Topbar "Add project" button; bigger sidebar logo; Inter font site-wide.
 - Component detail panel (click any row in Equipment Costing, Reports, Component Library): brand, part no, supplier, unit rate, freight, margin, component cost, installation cost, selling price, projects it's used in (`GET /api/items/{id}/details`).
 - Component Library page (`/app/library`, `GET /api/library`): unique parts across all projects grouped by part no (or description), total qty, component spend, install cost, selling price, projects.
+- Public Component_Viewer (`/component-viewer`, embed mode `?embed=1`, `GET /api/public/components`): only Description, Brand, Part No, Supplier, Quantity, Rate; styled to biigenergy.com.au (Inter, #1F2937 dark, #FD0531 red, #F1F1F1/#F7F7F7 greys); contact details taken from biigenergy.com.au footer.
 
 ## Backlog
 - P0: connect contact form to email delivery (Resend)

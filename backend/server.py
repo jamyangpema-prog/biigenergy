@@ -326,6 +326,14 @@ async def library(user: dict = Depends(current_user)):
     return sorted(out, key=lambda x: -x['selling_price'])
 
 
+@api.get("/public/components")
+async def public_components():
+    rows = await library(user={})
+    return [{'description': r['description'], 'brand': r['brand'], 'part_no': r['part_no'],
+             'supplier': r['supplier'], 'quantity': r['quantity'],
+             'min_rate': round(r['min_rate'], 2), 'max_rate': round(r['max_rate'], 2)}
+            for r in sorted(rows, key=lambda x: x['description'])]
+
 @api.get("/items/{iid}/details")
 async def item_details(iid: str, user: dict = Depends(current_user)):
     it = await db.items.find_one({'id': iid}, {'_id': 0})
