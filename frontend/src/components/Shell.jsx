@@ -1,10 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { useProjects } from '@/lib/projects';
-import { LayoutDashboard, Table2, Settings, FileText, BarChart3, LogOut, Users, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Table2, Settings, FileText, BarChart3, LogOut, Users, Plus } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
+import { api } from '@/lib/api';
 
 const LOGO = 'https://customer-assets-jt897jd0.emergentagent.net/job_equipquote--13ttmu53/artifacts/57e4a1b4741c1c06_LOGO%20BE.png';
 
@@ -18,8 +23,23 @@ const NAV = [
 
 export default function Shell() {
   const { user, logout, can } = useAuth();
-  const { projects, currentId, selectProject } = useProjects();
+  const { projects, currentId, selectProject, refresh } = useProjects();
   const nav = useNavigate();
+  const [showNew, setShowNew] = useState(false);
+  const [np, setNp] = useState({ name: '', client: '', description: '' });
+  const canAdd = user?.role === 'admin' || user?.role === 'estimator';
+
+  const createProject = async () => {
+    if (!np.name.trim()) return toast.error('Project name is required');
+    try {
+      const { data } = await api.post('/projects', np);
+      await refresh();
+      selectProject(data.id);
+      setShowNew(false);
+      setNp({ name: '', client: '', description: '' });
+      toast.success('Project created');
+    } catch { toast.error('Could not create project'); }
+  };
 
   const roleBadge = {
     admin: 'bg-slate-900 text-white',
@@ -30,12 +50,9 @@ export default function Shell() {
   return (
     <div className="min-h-screen flex bg-slate-50">
       <aside className="w-64 shrink-0 bg-slate-900 text-slate-200 flex flex-col fixed inset-y-0 left-0" data-testid="sidebar">
-        <div className="px-5 py-5 border-b border-slate-800 flex items-center gap-3">
-          <img src={LOGO} alt="BIIG ENERGY" className="h-10 w-10 rounded object-cover ring-2 ring-red-600/40" />
-          <div>
-            <div className="text-white font-semibold leading-tight">BIIG ENERGY</div>
-            <div className="text-xs text-slate-400">Costing & Quotations</div>
-          </div>
+        <div className="px-5 py-5 border-b border-slate-800">
+          <img src={LOGO} alt="BIIG ENERGY" className="w-full h-auto rounded-md object-contain" data-testid="sidebar-logo" />
+          <div className="text-xs text-slate-400 mt-3 uppercase tracking-wider">Costing & Quotations</div>
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {NAV.map((n) => (
@@ -82,6 +99,11 @@ export default function Shell() {
                 ))}
               </SelectContent>
             </Select>
+            {canAdd && (
+              <Button variant="outline" size="sm" onClick={() => setShowNew(true)} data-testid="topbar-add-project">
+                <Plus className="h-4 w-4 mr-1" /> Add project
+              </Button>
+            )}
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
@@ -105,6 +127,20 @@ export default function Shell() {
           <Outlet />
         </main>
       </div>
+      <Dialog open={showNew} onOpenChange={setShowNew}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add project</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label>Project name</Label><Input value={np.name} onChange={(e) => setNp({ ...np, name: e.target.value })} data-testid="topbar-project-name" /></div>
+            <div><Label>Client</Label><Input value={np.client} onChange={(e) => setNp({ ...np, client: e.target.value })} data-testid="topbar-project-client" /></div>
+            <div><Label>Description</Label><Input value={np.description} onChange={(e) => setNp({ ...np, description: e.target.value })} data-testid="topbar-project-description" /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNew(false)}>Cancel</Button>
+            <Button onClick={createProject} className="bg-slate-900 hover:bg-slate-800 text-white" data-testid="topbar-project-save">Create project</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
