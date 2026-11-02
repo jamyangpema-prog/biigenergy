@@ -5,6 +5,7 @@ import { Toaster } from 'sonner';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { ProjectProvider } from '@/lib/projects';
 import Login from '@/pages/Login';
+import Marketing from '@/pages/Marketing';
 import Shell from '@/components/Shell';
 import Dashboard from '@/pages/Dashboard';
 import EquipmentCosting from '@/pages/EquipmentCosting';
@@ -22,7 +23,7 @@ function Protected({ children }) {
 
 function AdminOnly({ children }) {
   const { user } = useAuth();
-  if (user?.role !== 'admin') return <Navigate to="/" replace />;
+  if (user?.role !== 'admin') return <Navigate to="/app" replace />;
   return children;
 }
 
@@ -32,9 +33,10 @@ function App() {
       <BrowserRouter>
         <Toaster position="top-right" richColors />
         <Routes>
+          <Route path="/" element={<Marketing />} />
           <Route path="/login" element={<Login />} />
           <Route
-            path="/"
+            path="/app"
             element={<Protected><ProjectProvider><Shell /></ProjectProvider></Protected>}
           >
             <Route index element={<Dashboard />} />
@@ -44,6 +46,7 @@ function App() {
             <Route path="reports" element={<Reports />} />
             <Route path="users" element={<AdminOnly><Users /></AdminOnly>} />
           </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

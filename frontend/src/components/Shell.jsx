@@ -9,11 +9,11 @@ import { Badge } from '@/components/ui/badge';
 const LOGO = 'https://customer-assets-jt897jd0.emergentagent.net/job_equipquote--13ttmu53/artifacts/57e4a1b4741c1c06_LOGO%20BE.png';
 
 const NAV = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/costing', label: 'Equipment Costing', icon: Table2 },
-  { to: '/quotation', label: 'Quotation', icon: FileText },
-  { to: '/reports', label: 'Reports', icon: BarChart3 },
-  { to: '/settings', label: 'Costing Settings', icon: Settings },
+  { to: '/app', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/app/costing', label: 'Equipment Costing', icon: Table2 },
+  { to: '/app/quotation', label: 'Quotation', icon: FileText },
+  { to: '/app/reports', label: 'Reports', icon: BarChart3 },
+  { to: '/app/settings', label: 'Costing Settings', icon: Settings },
 ];
 
 export default function Shell() {
@@ -53,7 +53,7 @@ export default function Shell() {
             </NavLink>
           ))}
           {can('manage_users') && (
-            <NavLink to="/users" data-testid="nav-users"
+            <NavLink to="/app/users" data-testid="nav-users"
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
                   isActive ? 'bg-slate-800 text-white border-l-2 border-red-600 pl-[10px]'

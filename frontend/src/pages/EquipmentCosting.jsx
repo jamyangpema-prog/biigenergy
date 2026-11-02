@@ -19,6 +19,7 @@ export default function EquipmentCosting() {
   const { can } = auth;
   const canEdit = auth.user?.role !== 'viewer';
   const [items, setItems] = useState([]);
+  const [loaded, setLoaded] = useState(false);
   const [expanded, setExpanded] = useState(new Set());
   const [q, setQ] = useState('');
   const [sort, setSort] = useState({ key: 'item_no', dir: 'asc' });
@@ -32,6 +33,7 @@ export default function EquipmentCosting() {
     if (!current) return;
     const { data } = await api.get(`/projects/${current.id}/items`);
     setItems(data);
+    setLoaded(true);
   };
   useEffect(() => { loadItems(); }, [current?.id]); // eslint-disable-line
 
@@ -173,7 +175,10 @@ export default function EquipmentCosting() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && (
+              {!loaded && (
+                <tr><td colSpan={10} className="p-12 text-center text-slate-500" data-testid="items-loading">Loading items…</td></tr>
+              )}
+              {loaded && filtered.length === 0 && (
                 <tr><td colSpan={10} className="p-12 text-center text-slate-500">
                   No items. {canEdit && <button onClick={() => setShowNew(true)} className="text-blue-600 hover:underline">Add one</button>}
                 </td></tr>

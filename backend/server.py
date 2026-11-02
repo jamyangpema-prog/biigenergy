@@ -80,7 +80,7 @@ class Project(BaseModel):
 class EquipmentItem(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    project_id: str
+    project_id: Optional[str] = None
     item_no: int = 1
     description: str = ''
     brand: Optional[str] = ''

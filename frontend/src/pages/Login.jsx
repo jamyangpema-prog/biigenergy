@@ -14,11 +14,11 @@ const BG = 'https://images.unsplash.com/photo-1717386255773-1e3037c81788?crop=en
 export default function Login() {
   const { login, user } = useAuth();
   const nav = useNavigate();
-  const [email, setEmail] = useState('admin@biigenergy.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to="/app" replace />;
 
   const submit = async (e) => {
     e.preventDefault();
@@ -26,7 +26,7 @@ export default function Login() {
     try {
       await login(email, password);
       toast.success('Welcome back');
-      nav('/');
+      nav('/app');
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'Login failed');
     } finally { setLoading(false); }
@@ -77,14 +77,6 @@ export default function Login() {
               {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Sign in
             </Button>
           </form>
-          <div className="mt-6 pt-6 border-t border-slate-200 text-xs text-slate-500">
-            <div className="font-semibold text-slate-700 mb-2">Demo accounts</div>
-            <ul className="space-y-1">
-              <li>admin@biigenergy.com / admin123</li>
-              <li>estimator@biigenergy.com / estimator123</li>
-              <li>viewer@biigenergy.com / viewer123</li>
-            </ul>
-          </div>
         </Card>
       </div>
     </div>
