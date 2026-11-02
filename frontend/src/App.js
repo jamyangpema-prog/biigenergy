@@ -13,6 +13,7 @@ import Settings from '@/pages/Settings';
 import Quotation from '@/pages/Quotation';
 import Reports from '@/pages/Reports';
 import Users from '@/pages/Users';
+import Library from '@/pages/Library';
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -44,6 +45,7 @@ function App() {
             <Route path="settings" element={<Settings />} />
             <Route path="quotation" element={<Quotation />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="library" element={<Library />} />
             <Route path="users" element={<AdminOnly><Users /></AdminOnly>} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

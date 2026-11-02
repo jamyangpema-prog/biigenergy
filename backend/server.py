@@ -292,6 +292,40 @@ async def update_item(iid: str, it: EquipmentItem, user: dict = Depends(require_
     proj = await db.projects.find_one({'id': doc['project_id']}, {'_id': 0})
     return calc_item(doc, proj['settings'])
 
+@api.get("/library")
+async def library(user: dict = Depends(current_user)):
+    projects = {p['id']: p for p in await db.projects.find({}, {'_id': 0}).to_list(1000)}
+    groups = {}
+    for raw in await db.items.find({}, {'_id': 0}).sort('item_no', 1).to_list(50000):
+        p = projects.get(raw['project_id'])
+        if not p:
+            continue
+        c = calc_item(raw, p['settings'])
+        part = (c.get('part_no') or '').strip()
+        key = f"pn:{part.upper()}" if part else f"d:{(c.get('description') or '').strip().upper()}"
+        g = groups.setdefault(key, {
+            'key': key, 'item_id': c['id'], 'description': c.get('description', ''),
+            'brand': c.get('brand') or '', 'part_no': part, 'supplier': c.get('supplier') or '',
+            'quantity': 0, 'total_component_cost': 0, 'labour_cost': 0, 'selling_price': 0,
+            'min_rate': c['rate'], 'max_rate': c['rate'], 'projects': {}})
+        g['brand'] = g['brand'] or (c.get('brand') or '')
+        g['supplier'] = g['supplier'] or (c.get('supplier') or '')
+        g['quantity'] += c['quantity']
+        g['total_component_cost'] += c['total_component_cost']
+        g['labour_cost'] += c['labour_cost']
+        g['selling_price'] += c['selling_price']
+        g['min_rate'] = min(g['min_rate'], c['rate'])
+        g['max_rate'] = max(g['max_rate'], c['rate'])
+        g['projects'][p['id']] = p['name']
+    out = []
+    for g in groups.values():
+        g['projects'] = [{'id': k, 'name': v} for k, v in g['projects'].items()]
+        for k in ('total_component_cost', 'labour_cost', 'selling_price'):
+            g[k] = round(g[k], 2)
+        out.append(g)
+    return sorted(out, key=lambda x: -x['selling_price'])
+
+
 @api.get("/items/{iid}/details")
 async def item_details(iid: str, user: dict = Depends(current_user)):
     it = await db.items.find_one({'id': iid}, {'_id': 0})

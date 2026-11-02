@@ -14,6 +14,9 @@
 - Marketing site: hero, value strip, services (6), about + principles, testimonials, FAQ, contact form, footer. Navy/white/grey + red accent, IBM Plex Sans/Mono.
 - Placeholders: years in operation, founding story, testimonials, standards FAQ, lead time, email, phone, ABN.
 - Contact form is front-end only (no email sent).
+- Topbar "Add project" button; bigger sidebar logo; Inter font site-wide.
+- Component detail panel (click any row in Equipment Costing, Reports, Component Library): brand, part no, supplier, unit rate, freight, margin, component cost, installation cost, selling price, projects it's used in (`GET /api/items/{id}/details`).
+- Component Library page (`/app/library`, `GET /api/library`): unique parts across all projects grouped by part no (or description), total qty, component spend, install cost, selling price, projects.
 
 ## Backlog
 - P0: connect contact form to email delivery (Resend)

@@ -4,11 +4,13 @@ import { useProjects } from '@/lib/projects';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { ComponentDetails } from '@/components/ComponentDetails';
 
 export default function Reports() {
   const { current, projects } = useProjects();
   const [items, setItems] = useState([]);
   const [all, setAll] = useState({}); // per-project items
+  const [detailId, setDetailId] = useState(null);
 
   useEffect(() => {
     if (!current) return;
@@ -38,7 +40,7 @@ export default function Reports() {
     <div className="space-y-5" data-testid="reports-page">
       <div>
         <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Reports</h1>
-        <p className="text-sm text-slate-500">Analytical breakdowns for {current.name}, with project comparison.</p>
+        <p className="text-sm text-slate-500">Analytical breakdowns for {current.name}, with project comparison. Click any component for full details.</p>
       </div>
 
       <Tabs defaultValue="costing" className="w-full">
@@ -51,8 +53,8 @@ export default function Reports() {
         </TabsList>
 
         <TabsContent value="costing">
-          <ReportTable items={items} columns={[
-            ['item_no', '#', 'num'], ['description', 'Description'], ['brand', 'Brand'], ['quantity', 'Qty', 'num'],
+          <ReportTable onRowClick={setDetailId} items={items} columns={[
+            ['item_no', '#', 'int'], ['description', 'Description'], ['brand', 'Brand'], ['quantity', 'Qty', 'num'],
             ['rate', 'Rate', 'aud'], ['freight', 'Freight', 'aud'], ['margin', 'Margin', 'aud'],
             ['component_cost', 'CC', 'aud'], ['total_component_cost', 'TCC', 'aud'],
             ['labour_cost', 'Labour', 'aud'], ['selling_price', 'SP', 'aud'],
@@ -60,16 +62,16 @@ export default function Reports() {
         </TabsContent>
 
         <TabsContent value="component">
-          <ReportTable items={items} columns={[
-            ['item_no', '#', 'num'], ['description', 'Description'], ['quantity', 'Qty', 'num'],
+          <ReportTable onRowClick={setDetailId} items={items} columns={[
+            ['item_no', '#', 'int'], ['description', 'Description'], ['quantity', 'Qty', 'num'],
             ['rate', 'Rate', 'aud'], ['freight', 'Freight', 'aud'], ['margin', 'Margin', 'aud'],
             ['component_cost', 'Comp Cost', 'aud'], ['total_component_cost', 'Total CC', 'aud'],
           ]} />
         </TabsContent>
 
         <TabsContent value="labour">
-          <ReportTable items={items} columns={[
-            ['item_no', '#', 'num'], ['description', 'Description'],
+          <ReportTable onRowClick={setDetailId} items={items} columns={[
+            ['item_no', '#', 'int'], ['description', 'Description'],
             ['install_hrs', 'Install hr', 'num'], ['wiring_hrs', 'Wiring hr', 'num'],
             ['total_install_hrs', 'Total hr', 'num'], ['effective_labour_rate', '$/hr', 'aud'],
             ['labour_cost', 'Labour Cost', 'aud'],
@@ -77,8 +79,8 @@ export default function Reports() {
         </TabsContent>
 
         <TabsContent value="sp">
-          <ReportTable items={items} columns={[
-            ['item_no', '#', 'num'], ['description', 'Description'], ['quantity', 'Qty', 'num'],
+          <ReportTable onRowClick={setDetailId} items={items} columns={[
+            ['item_no', '#', 'int'], ['description', 'Description'], ['quantity', 'Qty', 'num'],
             ['total_component_cost', 'TCC', 'aud'], ['labour_cost', 'Labour', 'aud'],
             ['selling_price', 'Selling Price', 'aud'],
           ]} />
@@ -128,14 +130,15 @@ export default function Reports() {
           </Card>
         </TabsContent>
       </Tabs>
+      <ComponentDetails itemId={detailId} onClose={() => setDetailId(null)} />
     </div>
   );
 }
 
-function ReportTable({ items, columns }) {
+function ReportTable({ items, columns, onRowClick }) {
   const totals = {};
   columns.forEach(([k, _, type]) => { if (type === 'aud' || type === 'num') totals[k] = items.reduce((a, i) => a + (i[k] || 0), 0); });
-  const fmt = (v, type) => type === 'aud' ? fmtAUD(v) : type === 'num' ? fmtNum(v, 2) : (v ?? '');
+  const fmt = (v, type) => type === 'aud' ? fmtAUD(v) : type === 'num' ? fmtNum(v, 2) : type === 'int' ? v : (v ?? '');
   return (
     <Card className="border-slate-200 overflow-hidden">
       <div className="overflow-x-auto">
@@ -145,7 +148,7 @@ function ReportTable({ items, columns }) {
           </thead>
           <tbody>
             {items.map((it) => (
-              <tr key={it.id} className="border-t border-slate-200 even:bg-slate-50/50">
+              <tr key={it.id} onClick={() => onRowClick(it.id)} className="border-t border-slate-200 even:bg-slate-50/50 hover:bg-slate-100 cursor-pointer" data-testid={`report-row-${it.item_no}`}>
                 {columns.map(([k, _, type]) => (
                   <td key={k} className={`px-3 py-2 ${type ? 'fin text-right' : 'text-slate-800'}`}>{fmt(it[k], type)}</td>
                 ))}
