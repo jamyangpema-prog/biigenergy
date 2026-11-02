@@ -307,7 +307,11 @@ async def library(user: dict = Depends(current_user)):
             'key': key, 'item_id': c['id'], 'description': c.get('description', ''),
             'brand': c.get('brand') or '', 'part_no': part, 'supplier': c.get('supplier') or '',
             'quantity': 0, 'total_component_cost': 0, 'labour_cost': 0, 'selling_price': 0,
-            'min_rate': c['rate'], 'max_rate': c['rate'], 'projects': {}})
+            'min_rate': c['rate'], 'max_rate': c['rate'], 'min_unit_sp': None, 'max_unit_sp': None, 'projects': {}})
+        if c['quantity'] and c['rate']:
+            unit_sp = c['selling_price'] / c['quantity']
+            g['min_unit_sp'] = unit_sp if g['min_unit_sp'] is None else min(g['min_unit_sp'], unit_sp)
+            g['max_unit_sp'] = unit_sp if g['max_unit_sp'] is None else max(g['max_unit_sp'], unit_sp)
         g['brand'] = g['brand'] or (c.get('brand') or '')
         g['supplier'] = g['supplier'] or (c.get('supplier') or '')
         g['quantity'] += c['quantity']
@@ -326,12 +330,32 @@ async def library(user: dict = Depends(current_user)):
     return sorted(out, key=lambda x: -x['selling_price'])
 
 
+CATEGORY_RULES = [
+    ('Chassis', ['CHASSIS']),
+    ('Enclosures & Panels', ['ENCLOSURE', 'PANEL']),
+    ('Meters', ['METER']),
+    ('Surge Protection', ['SURGE']),
+    ('Circuit Breakers', ['MCCB', 'MCB', 'RCBO']),
+    ('Fuse Carriers', ['FUSE']),
+    ('Current Transformers', ['CTS', ' CT ']),
+    ('Busbars & Insulators', ['BAR', 'INSULATOR']),
+    ('Cable Ducting', ['DUCT']),
+]
+
+def categorise(desc: str) -> str:
+    d = f" {(desc or '').upper()} "
+    for name, keys in CATEGORY_RULES:
+        if any(k in d for k in keys):
+            return name
+    return 'Other'
+
 @api.get("/public/components")
 async def public_components():
     rows = await library(user={})
+    r2 = lambda v: round(v, 2) if v is not None else None
     return [{'description': r['description'], 'brand': r['brand'], 'part_no': r['part_no'],
-             'supplier': r['supplier'], 'quantity': r['quantity'],
-             'min_rate': round(r['min_rate'], 2), 'max_rate': round(r['max_rate'], 2)}
+             'supplier': r['supplier'], 'quantity': r['quantity'], 'category': categorise(r['description']),
+             'min_price': r2(r['min_unit_sp']), 'max_price': r2(r['max_unit_sp'])}
             for r in sorted(rows, key=lambda x: x['description'])]
 
 @api.get("/items/{iid}/details")

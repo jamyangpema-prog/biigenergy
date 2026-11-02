@@ -11,7 +11,7 @@ const DARK = '#1F2937';
 
 const NAV = [['Home', '/'], ['Products', '/products/'], ['Electrical Testing', '/electrical-testing/'], ['About Us', '/about-us/'], ['Contact Us', '/contact-us/']];
 const COLS = [['description', 'Equipment Description', false], ['brand', 'Brand', false], ['part_no', 'Part Number', false],
-  ['supplier', 'Supplier', false], ['quantity', 'Quantity', true], ['min_rate', 'Rate', true]];
+  ['supplier', 'Supplier', false], ['quantity', 'Quantity', true], ['min_price', 'Price (ex GST)', true]];
 
 function Header() {
   return (
@@ -62,22 +62,30 @@ export default function ComponentViewer() {
   const embed = params.get('embed') === '1';
   const [rows, setRows] = useState(null);
   const [q, setQ] = useState('');
+  const [cat, setCat] = useState('All');
   const [sort, setSort] = useState({ key: 'description', dir: 'asc' });
 
   useEffect(() => { axios.get(`${API}/public/components`).then((r) => setRows(r.data)).catch(() => setRows([])); }, []);
 
   const view = useMemo(() => {
     const s = q.toLowerCase();
-    const arr = (rows || []).filter((r) => !s || [r.description, r.brand, r.part_no, r.supplier].some((v) => (v || '').toLowerCase().includes(s)));
+    const arr = (rows || []).filter((r) => (cat === 'All' || r.category === cat)
+      && (!s || [r.description, r.brand, r.part_no, r.supplier].some((v) => (v || '').toLowerCase().includes(s))));
     return [...arr].sort((a, b) => {
       const v1 = a[sort.key], v2 = b[sort.key];
       const c = typeof v1 === 'number' ? v1 - v2 : String(v1 || '').localeCompare(String(v2 || ''));
       return sort.dir === 'asc' ? c : -c;
     });
-  }, [rows, q, sort]);
+  }, [rows, q, sort, cat]);
+
+  const cats = useMemo(() => {
+    const counts = {};
+    (rows || []).forEach((r) => { counts[r.category] = (counts[r.category] || 0) + 1; });
+    return [['All', (rows || []).length], ...Object.entries(counts).sort((a, b) => (a[0] === 'Other') - (b[0] === 'Other') || a[0].localeCompare(b[0]))];
+  }, [rows]);
 
   const toggle = (key) => setSort((s) => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' });
-  const rate = (r) => !r.max_rate ? '—' : r.min_rate === r.max_rate ? fmtAUD(r.min_rate) : `${fmtAUD(r.min_rate)} – ${fmtAUD(r.max_rate)}`;
+  const price = (r) => r.max_price == null ? 'On request' : r.min_price === r.max_price ? fmtAUD(r.min_price) : `${fmtAUD(r.min_price)} – ${fmtAUD(r.max_price)}`;
 
   return (
     <div className="min-h-screen bg-white text-[#4B5563]" data-testid="component-viewer">
@@ -87,7 +95,7 @@ export default function ComponentViewer() {
           <div className="max-w-7xl mx-auto">
             <div className="text-[13px] font-semibold uppercase tracking-[0.2em]" style={{ color: RED }}>BiigEnergy</div>
             <h1 className="text-4xl sm:text-5xl font-bold text-white mt-3">Component_Viewer</h1>
-            <p className="text-slate-300 mt-4 max-w-2xl">Browse the electrical components we specify and supply: descriptions, brands, part numbers, suppliers, quantities and rates.</p>
+            <p className="text-slate-300 mt-4 max-w-2xl">Browse the electrical components we specify and supply: descriptions, brands, part numbers, suppliers, quantities and prices. Prices are per unit, supplied and installed, in AUD excluding GST.</p>
           </div>
         </section>
       )}
@@ -103,6 +111,14 @@ export default function ComponentViewer() {
                        data-testid="cv-search" />
               </div>
               <span className="text-sm" data-testid="cv-count">{view.length} components</span>
+            </div>
+            <div className="px-4 py-3 border-b border-slate-200 flex flex-wrap gap-2" data-testid="cv-categories">
+              {cats.map(([name, n]) => (
+                <button key={name} onClick={() => setCat(name)} data-testid={`cv-cat-${name.toLowerCase().replace(/[^a-z]+/g, '-')}`}
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-colors ${cat === name ? 'bg-[#FD0531] border-[#FD0531] text-white' : 'bg-white border-slate-300 text-[#1F2937] hover:border-[#FD0531] hover:text-[#FD0531]'}`}>
+                  {name} <span className={cat === name ? 'text-white/80' : 'text-slate-400'}>({n})</span>
+                </button>
+              ))}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm" data-testid="cv-table">
@@ -127,13 +143,14 @@ export default function ComponentViewer() {
                       <td className="px-4 py-3 tabular-nums">{r.part_no || '—'}</td>
                       <td className="px-4 py-3">{r.supplier || '—'}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{fmtNum(r.quantity, 0)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums font-semibold" style={{ color: RED }}>{rate(r)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums font-semibold" style={{ color: RED }}>{price(r)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </div>
+          <p className="mt-3 text-xs text-slate-500" data-testid="cv-price-note">Prices are per unit, supplied and installed, in AUD excluding GST. Final pricing is confirmed on quotation.</p>
           {!embed && (
             <div className="mt-10 text-center">
               <a href={`${SITE}/contact-us/`} style={{ background: RED }} className="inline-block text-white font-medium px-8 py-3.5 rounded-md hover:opacity-90" data-testid="cv-cta">Request a Quote</a>
