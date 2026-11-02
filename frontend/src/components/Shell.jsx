@@ -15,7 +15,7 @@ const LOGO = 'https://customer-assets-jt897jd0.emergentagent.net/job_equipquote-
 
 const NAV = [
   { to: '/app', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/app/costing', label: 'Equipment Costing', icon: Table2 },
+  { to: '/app/costing', label: 'Component Rates', icon: Table2 },
   { to: '/app/library', label: 'Component Library', icon: Boxes },
   { to: '/app/quotation', label: 'Quotation', icon: FileText },
   { to: '/app/reports', label: 'Reports', icon: BarChart3 },

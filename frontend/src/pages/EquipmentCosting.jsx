@@ -240,7 +240,7 @@ export default function EquipmentCosting() {
         </div>
       </Card>
 
-      <ComponentDetails itemId={detailId} onClose={() => setDetailId(null)} />
+      <ComponentDetails itemId={detailId} onClose={() => setDetailId(null)} onSaved={loadItems} />
 
       <Dialog open={showNew} onOpenChange={setShowNew}>
         <DialogContent>

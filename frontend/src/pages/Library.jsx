@@ -23,7 +23,8 @@ export default function Library() {
   const [sort, setSort] = useState({ key: 'selling_price', dir: 'desc' });
   const [detailId, setDetailId] = useState(null);
 
-  useEffect(() => { api.get('/library').then((r) => setRows(r.data)); }, []);
+  const loadRows = () => api.get('/library').then((r) => setRows(r.data));
+  useEffect(() => { loadRows(); }, []);
 
   const view = useMemo(() => {
     const s = q.toLowerCase();
@@ -116,7 +117,7 @@ export default function Library() {
         </div>
       </Card>
 
-      <ComponentDetails itemId={detailId} onClose={() => setDetailId(null)} />
+      <ComponentDetails itemId={detailId} onClose={() => setDetailId(null)} onSaved={loadRows} />
     </div>
   );
 }

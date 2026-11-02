@@ -11,16 +11,17 @@ export default function Reports() {
   const [items, setItems] = useState([]);
   const [all, setAll] = useState({}); // per-project items
   const [detailId, setDetailId] = useState(null);
+  const [rev, setRev] = useState(0);
 
   useEffect(() => {
     if (!current) return;
     api.get(`/projects/${current.id}/items`).then((r) => setItems(r.data));
-  }, [current?.id]);
+  }, [current?.id, rev]);
 
   useEffect(() => {
     Promise.all(projects.map((p) => api.get(`/projects/${p.id}/items`).then((r) => [p.id, r.data])))
       .then((xs) => setAll(Object.fromEntries(xs)));
-  }, [projects]);
+  }, [projects, rev]);
 
   if (!current) return null;
 
@@ -130,7 +131,7 @@ export default function Reports() {
           </Card>
         </TabsContent>
       </Tabs>
-      <ComponentDetails itemId={detailId} onClose={() => setDetailId(null)} />
+      <ComponentDetails itemId={detailId} onClose={() => setDetailId(null)} onSaved={() => setRev((v) => v + 1)} />
     </div>
   );
 }

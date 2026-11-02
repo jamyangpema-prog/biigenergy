@@ -2,7 +2,59 @@ import React, { useEffect, useState } from 'react';
 import { api, fmtAUD, fmtNum } from '@/lib/api';
 import { useProjects } from '@/lib/projects';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { Package, Wrench, Receipt, FolderKanban } from 'lucide-react';
+import { Package, Wrench, Receipt, FolderKanban, Pencil, Save, X } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
+import { toast } from 'sonner';
+
+const FIELDS = [['description', 'Equipment description', 'text'], ['brand', 'Brand', 'text'], ['part_no', 'Part number', 'text'],
+  ['supplier', 'Supplier', 'text'], ['rate', 'Rate (1 component, AUD)', 'number'], ['install_hrs', 'Install hours', 'number'], ['wiring_hrs', 'Wiring hours', 'number']];
+
+function EditForm({ d, onCancel, onSaved }) {
+  const [f, setF] = useState(() => Object.fromEntries(FIELDS.map(([k]) => [k, d.item[k] ?? ''])));
+  const [qty, setQty] = useState(() => Object.fromEntries(d.usage.map((u) => [u.item_id, u.quantity])));
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    if (!String(f.description).trim()) return toast.error('Description is required');
+    setSaving(true);
+    try {
+      const body = { ...f, rate: parseFloat(f.rate) || 0, install_hrs: parseFloat(f.install_hrs) || 0, wiring_hrs: parseFloat(f.wiring_hrs) || 0,
+        quantities: Object.fromEntries(Object.entries(qty).map(([k, v]) => [k, parseFloat(v) || 0])) };
+      const { data } = await api.put(`/items/${d.item.id}/apply-all`, body);
+      toast.success(`Updated ${data.updated} line${data.updated === 1 ? '' : 's'} across all projects`);
+      onSaved();
+    } catch { toast.error('Save failed'); } finally { setSaving(false); }
+  };
+  return (
+    <div className="space-y-4" data-testid="details-edit-form">
+      <div className="rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs p-3">
+        Changes apply to all {d.usage.length} matching line{d.usage.length === 1 ? '' : 's'} in every project. Quantities are set per line below.
+      </div>
+      <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
+        {FIELDS.map(([k, l, t]) => (
+          <div key={k}>
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-600">{l}</label>
+            <input type={t} step="any" value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })}
+                   className={`editable-cell mt-1 ${t === 'number' ? 'text-right' : ''}`} data-testid={`edit-${k}`} />
+          </div>
+        ))}
+      </div>
+      <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">Quantity per line</div>
+        {d.usage.map((u) => (
+          <div key={u.item_id} className="flex items-center justify-between gap-3 py-1.5 border-b border-slate-100 last:border-0">
+            <div className="text-sm"><span className="font-medium text-slate-900">{u.project_name}</span> <span className="text-slate-500">· Item #{u.item_no}</span></div>
+            <input type="number" step="any" value={qty[u.item_id]} onChange={(e) => setQty({ ...qty, [u.item_id]: e.target.value })}
+                   className="editable-cell w-24 text-right" data-testid={`edit-qty-${u.item_id}`} />
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-end gap-2">
+        <button onClick={onCancel} className="px-4 py-2 text-sm rounded-md border border-slate-300 bg-white hover:bg-slate-50 inline-flex items-center gap-1" data-testid="edit-cancel"><X className="h-4 w-4" />Cancel</button>
+        <button onClick={save} disabled={saving} className="px-4 py-2 text-sm rounded-md bg-slate-900 text-white hover:bg-slate-800 inline-flex items-center gap-1 disabled:opacity-60" data-testid="edit-save"><Save className="h-4 w-4" />{saving ? 'Saving…' : 'Save everywhere'}</button>
+      </div>
+    </div>
+  );
+}
 
 function Row({ label, value, strong, testid }) {
   return (
@@ -25,14 +77,19 @@ function Block({ icon: Icon, title, children }) {
   );
 }
 
-export function ComponentDetails({ itemId, onClose }) {
+export function ComponentDetails({ itemId, onClose, onSaved }) {
   const { selectProject } = useProjects();
+  const { user } = useAuth();
+  const canEdit = user?.role === 'admin' || user?.role === 'estimator';
   const [d, setD] = useState(null);
+  const [editing, setEditing] = useState(false);
 
+  const load = () => api.get(`/items/${itemId}/details`).then((r) => setD(r.data));
   useEffect(() => {
+    setEditing(false);
     if (!itemId) { setD(null); return; }
-    api.get(`/items/${itemId}/details`).then((r) => setD(r.data));
-  }, [itemId]);
+    load();
+  }, [itemId]); // eslint-disable-line
 
   const it = d?.item;
   const groups = Object.values((d?.usage || []).reduce((acc, u) => {
@@ -51,7 +108,16 @@ export function ComponentDetails({ itemId, onClose }) {
               <SheetDescription className="text-left">
                 Project: <span className="font-medium text-slate-900" data-testid="details-project">{d.project_name}</span>
               </SheetDescription>
+              {canEdit && !editing && (
+                <button onClick={() => setEditing(true)} className="self-start mt-2 px-3 py-1.5 text-sm rounded-md bg-slate-900 text-white hover:bg-slate-800 inline-flex items-center gap-1" data-testid="details-edit-btn">
+                  <Pencil className="h-3.5 w-3.5" /> Edit component
+                </button>
+              )}
             </SheetHeader>
+
+            {editing ? (
+              <EditForm d={d} onCancel={() => setEditing(false)} onSaved={async () => { await load(); setEditing(false); onSaved?.(); }} />
+            ) : (<>
 
             <Block icon={Package} title="Component">
               <Row label="Brand" value={it.brand || '—'} testid="details-brand" />
@@ -91,6 +157,7 @@ export function ComponentDetails({ itemId, onClose }) {
                 </button>
               ))}
             </Block>
+            </>)}
           </div>
         )}
       </SheetContent>

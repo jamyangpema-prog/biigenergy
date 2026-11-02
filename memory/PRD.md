@@ -17,6 +17,9 @@
 - Topbar "Add project" button; bigger sidebar logo; Inter font site-wide.
 - Component detail panel (click any row in Equipment Costing, Reports, Component Library): brand, part no, supplier, unit rate, freight, margin, component cost, installation cost, selling price, projects it's used in (`GET /api/items/{id}/details`).
 - Component Library page (`/app/library`, `GET /api/library`): unique parts across all projects grouped by part no (or description), total qty, component spend, install cost, selling price, projects.
+- Component_Viewer tab in app sidebar under Reports (`/app/component-viewer`).
+- "Equipment Costing" renamed "Component Rates" in sidebar.
+- Edit component everywhere: detail panel "Edit component" (admin/estimator) → `PUT /api/items/{id}/apply-all` updates description, brand, part no, supplier, rate, install/wiring hrs on all matching lines (same part no, else same description) in every project; quantity editable per line.
 - Public Component_Viewer (`/component-viewer`, embed mode `?embed=1`, `GET /api/public/components`): only Description, Brand, Part No, Supplier, Quantity, Price; shows per-unit selling price (SP/Q, ex GST, incl. install) — purchase rate no longer exposed; category filter chips (auto-categorised by description keywords: Chassis, Enclosures & Panels, Meters, Surge Protection, Circuit Breakers, Fuse Carriers, Current Transformers, Busbars & Insulators, Cable Ducting, Other); styled to biigenergy.com.au (Inter, #1F2937 dark, #FD0531 red, #F1F1F1/#F7F7F7 greys); contact details taken from biigenergy.com.au footer.
 
 ## Backlog

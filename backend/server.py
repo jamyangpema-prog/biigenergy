@@ -358,6 +358,32 @@ async def public_components():
              'min_price': r2(r['min_unit_sp']), 'max_price': r2(r['max_unit_sp'])}
             for r in sorted(rows, key=lambda x: x['description'])]
 
+class ComponentUpdate(BaseModel):
+    description: str
+    brand: str = ''
+    part_no: str = ''
+    supplier: str = ''
+    rate: float = 0
+    install_hrs: float = 0
+    wiring_hrs: float = 0
+    quantities: dict = Field(default_factory=dict)
+
+@api.put("/items/{iid}/apply-all")
+async def apply_all(iid: str, body: ComponentUpdate, user: dict = Depends(require_role('admin', 'estimator'))):
+    src = await db.items.find_one({'id': iid}, {'_id': 0})
+    if not src:
+        raise HTTPException(404, "Item not found")
+    part = (src.get('part_no') or '').strip()
+    match = {'part_no': part} if part else {'description': src.get('description', '')}
+    ids = [d['id'] for d in await db.items.find(match, {'id': 1, '_id': 0}).to_list(50000)]
+    fields = body.model_dump(exclude={'quantities'})
+    fields['updated_at'] = datetime.now(timezone.utc).isoformat()
+    await db.items.update_many({'id': {'$in': ids}}, {'$set': fields})
+    for item_id, qty in body.quantities.items():
+        if item_id in ids:
+            await db.items.update_one({'id': item_id}, {'$set': {'quantity': float(qty)}})
+    return {'updated': len(ids)}
+
 @api.get("/items/{iid}/details")
 async def item_details(iid: str, user: dict = Depends(current_user)):
     it = await db.items.find_one({'id': iid}, {'_id': 0})
