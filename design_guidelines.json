@@ -1,0 +1,151 @@
+{
+  "theme": "light",
+  "colors": {
+    "primary_navy": "#0F172A",
+    "secondary_navy": "#1E293B",
+    "accent_red": "#DC2626",
+    "background_app": "#F8FAFC",
+    "surface_white": "#FFFFFF",
+    "surface_calculated": "#F1F5F9",
+    "border_light": "#E2E8F0",
+    "border_focus": "#3B82F6",
+    "text_primary": "#0F172A",
+    "text_secondary": "#475569",
+    "text_muted": "#64748B",
+    "text_inverse": "#FFFFFF"
+  },
+  "typography": {
+    "font_family_headings": "'IBM Plex Sans', sans-serif",
+    "font_family_body": "'IBM Plex Sans', sans-serif",
+    "font_family_mono": "'IBM Plex Mono', monospace",
+    "h1": "text-2xl font-semibold tracking-tight text-slate-900",
+    "h2": "text-xl font-semibold tracking-tight text-slate-900",
+    "h3": "text-lg font-medium text-slate-900",
+    "body": "text-sm text-slate-700",
+    "financial_data": "font-mono text-sm tabular-nums tracking-tight"
+  },
+  "spacing": {
+    "container_padding": "p-6",
+    "section_gap": "gap-6",
+    "table_cell_padding": "px-4 py-2",
+    "input_padding": "px-3 py-1.5"
+  },
+  "components": {
+    "sidebar": {
+      "background": "bg-slate-900",
+      "text": "text-slate-300",
+      "text_active": "text-white font-medium",
+      "hover": "hover:bg-slate-800 hover:text-white",
+      "brand_accent": "border-l-4 border-red-600",
+      "logo_usage": "Use the BIIG ENERGY red logo sparingly at the top of the sidebar. Ensure it has enough breathing room (p-4)."
+    },
+    "topbar": {
+      "background": "bg-white",
+      "border": "border-b border-slate-200",
+      "height": "h-16",
+      "shadow": "shadow-sm"
+    },
+    "kpi_cards": {
+      "background": "bg-white",
+      "border": "border border-slate-200",
+      "radius": "rounded-lg",
+      "shadow": "shadow-sm",
+      "padding": "p-5",
+      "value_typography": "text-2xl font-semibold font-mono text-slate-900",
+      "label_typography": "text-sm font-medium text-slate-500 uppercase tracking-wider"
+    },
+    "data_table": {
+      "header": "bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider text-left",
+      "row": "border-b border-slate-200 hover:bg-slate-50 transition-colors",
+      "row_zebra": "even:bg-slate-50/50",
+      "cell": "px-4 py-3 text-sm text-slate-700",
+      "financial_column": "text-right font-mono tabular-nums",
+      "expandable_row_container": "bg-slate-50 border-b border-slate-200 p-4 shadow-inner"
+    },
+    "costing_editor_cells": {
+      "editable": {
+        "background": "bg-white",
+        "border": "border border-slate-300",
+        "radius": "rounded",
+        "focus": "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+        "text": "text-slate-900 font-mono text-sm",
+        "padding": "px-2 py-1"
+      },
+      "calculated": {
+        "background": "bg-slate-100",
+        "border": "border border-transparent",
+        "radius": "rounded",
+        "text": "text-slate-500 font-mono text-sm cursor-not-allowed",
+        "padding": "px-2 py-1"
+      }
+    },
+    "buttons": {
+      "primary": "bg-slate-900 text-white hover:bg-slate-800 rounded-md px-4 py-2 text-sm font-medium transition-colors focus:ring-2 focus:ring-slate-900 focus:ring-offset-2",
+      "secondary": "bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 rounded-md px-4 py-2 text-sm font-medium transition-colors",
+      "danger": "bg-red-600 text-white hover:bg-red-700 rounded-md px-4 py-2 text-sm font-medium transition-colors",
+      "ghost": "text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+    },
+    "badges": {
+      "admin": "bg-slate-900 text-white px-2.5 py-0.5 rounded-full text-xs font-medium",
+      "estimator": "bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full text-xs font-medium",
+      "viewer": "bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full text-xs font-medium"
+    },
+    "gst_toggle": {
+      "style": "Use a standard switch component. Active state: bg-slate-900. Inactive state: bg-slate-300."
+    },
+    "project_selector": {
+      "style": "A clean dropdown in the topbar. bg-white border border-slate-200 rounded-md shadow-sm text-sm font-medium text-slate-700 hover:bg-slate-50."
+    }
+  },
+  "empty_states": {
+    "container": "flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-slate-200 rounded-lg bg-slate-50",
+    "icon": "text-slate-400 w-12 h-12 mb-4",
+    "title": "text-lg font-medium text-slate-900 mb-1",
+    "description": "text-sm text-slate-500 mb-4"
+  },
+  "loading_states": {
+    "table_skeleton": "animate-pulse bg-slate-200 h-10 w-full rounded mb-2",
+    "card_skeleton": "animate-pulse bg-slate-200 h-24 w-full rounded-lg",
+    "spinner": "animate-spin text-slate-900 w-5 h-5"
+  },
+  "image_urls": {
+    "login_background": {
+      "url": "https://images.unsplash.com/photo-1717386255773-1e3037c81788?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwxfHxpbmR1c3RyaWFsJTIwZW5naW5lZXJpbmclMjBtYW51ZmFjdHVyaW5nJTIwZmFjaWxpdHklMjBjbGVhbnxlbnwwfHx8fDE3OTM1OTI1MDB8MA&ixlib=rb-4.1.0&q=85",
+      "description": "A large machine in a large building - clean industrial engineering facility. Use with a heavy navy overlay (bg-slate-900/80) for the login screen background.",
+      "category": "background"
+    },
+    "logo": {
+      "url": "https://customer-assets-jt897jd0.emergentagent.net/job_equipquote--13ttmu53/artifacts/57e4a1b4741c1c06_LOGO%20BE.png",
+      "description": "BIIG ENERGY Logo",
+      "category": "brand"
+    }
+  },
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "You tend to converge toward generic, 'on distribution' outputs. In frontend design, this creates what users call the 'AI slop' aesthetic. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur) where appropriate, but avoid on data-heavy tables.",
+    "You MUST NOT apply universal transition. Eg: `transition: all`. This results in breaking transforms. Always add transitions for specific interactive elements like button, input excluding transforms.",
+    "You MUST NOT center align the app container, ie do not add `.App { text-align: center; }` in the css file. This disrupts the human natural reading flow of text.",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style.",
+    "NEVER: use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯 etc for icons.",
+    "Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations. Static = dead.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary.",
+    "Main agent relies on these image URLs. Missing categories (especially sponsor logos) = main agent will use placeholder text which is FORBIDDEN.",
+    "Prioritize using pre-existing components from src/components/ui when applicable.",
+    "Create new components that match the style and conventions of existing components when needed.",
+    "Examine existing components to understand the project's component patterns before creating new ones.",
+    "Use `sonner` for toasts. Sonner component are located in `/app/src/components/ui/sonner.tsx`.",
+    "CRITICAL: DO NOT use complete `transparent` background in header, overlays, any surface that has content under it. Example: Dropdown with transparent background.",
+    "All interactive and key informational elements MUST include a `data-testid` attribute to facilitate robust automated testing."
+  ],
+  "instructions_to_main_agent": {
+    "layout": "Implement a classic ERP layout: fixed left sidebar (navy), fixed topbar (white), and a scrollable main content area (light grey).",
+    "data_table": "The Equipment Schedule table is the core of the app. It must be highly functional. Use zebra striping. Financial columns MUST be right-aligned and use the IBM Plex Mono font. Implement an expandable row pattern for the costing editor.",
+    "costing_editor": "Inside the expanded row, display the costing details in a dense, grid-like form. Strictly differentiate editable fields (white bg, border, focus ring) from calculated fields (light grey bg, no border, muted text).",
+    "typography": "Install and use IBM Plex Sans for all UI text and IBM Plex Mono for all numbers/financial data. This is critical for the 'engineering/procurement' aesthetic.",
+    "logo": "Use the provided BIIG ENERGY logo in the sidebar header. Do not make the entire UI red; use the red only as a subtle accent (e.g., active state indicator in sidebar, or a primary action button if appropriate, though navy is preferred for primary buttons to keep it professional)."
+  }
+}
