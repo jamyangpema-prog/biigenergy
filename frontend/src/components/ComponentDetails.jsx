@@ -50,7 +50,7 @@ function EditForm({ d, onCancel, onSaved }) {
       </div>
       <div className="flex justify-end gap-2">
         <button onClick={onCancel} className="px-4 py-2 text-sm rounded-md border border-slate-300 bg-white hover:bg-slate-50 inline-flex items-center gap-1" data-testid="edit-cancel"><X className="h-4 w-4" />Cancel</button>
-        <button onClick={save} disabled={saving} className="px-4 py-2 text-sm rounded-md bg-slate-900 text-white hover:bg-slate-800 inline-flex items-center gap-1 disabled:opacity-60" data-testid="edit-save"><Save className="h-4 w-4" />{saving ? 'Saving…' : 'Save everywhere'}</button>
+        <button onClick={save} disabled={saving} className="px-4 py-2 text-sm rounded-md bg-slate-900 text-white hover:bg-slate-800 inline-flex items-center gap-1 disabled:opacity-60" data-testid="edit-save"><Save className="h-4 w-4" />{saving ? 'Saving…' : 'Save'}</button>
       </div>
     </div>
   );
