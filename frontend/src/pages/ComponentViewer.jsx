@@ -57,9 +57,9 @@ function Footer() {
   );
 }
 
-export default function ComponentViewer() {
+export default function ComponentViewer({ inApp = false }) {
   const [params] = useSearchParams();
-  const embed = params.get('embed') === '1';
+  const embed = inApp || params.get('embed') === '1';
   const [rows, setRows] = useState(null);
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('All');
@@ -88,7 +88,16 @@ export default function ComponentViewer() {
   const price = (r) => r.max_price == null ? 'On request' : r.min_price === r.max_price ? fmtAUD(r.min_price) : `${fmtAUD(r.min_price)} – ${fmtAUD(r.max_price)}`;
 
   return (
-    <div className="min-h-screen bg-white text-[#4B5563]" data-testid="component-viewer">
+    <div className={inApp ? 'text-[#4B5563]' : 'min-h-screen bg-white text-[#4B5563]'} data-testid="component-viewer">
+      {inApp && (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Component_Viewer</h1>
+            <p className="text-sm text-slate-500">Exactly what visitors see on the public page.</p>
+          </div>
+          <a href="/component-viewer" target="_blank" rel="noreferrer" className="text-sm font-medium text-white px-4 py-2 rounded-md hover:opacity-90" style={{ background: RED }} data-testid="cv-open-public">Open public page</a>
+        </div>
+      )}
       {!embed && <Header />}
       {!embed && (
         <section style={{ background: DARK }} className="px-6 pt-14 pb-20">
@@ -100,8 +109,8 @@ export default function ComponentViewer() {
         </section>
       )}
 
-      <section className={`px-6 ${embed ? 'py-6' : 'py-14 bg-[#F1F1F1]'}`}>
-        <div className={`max-w-7xl mx-auto ${embed ? '' : '-mt-24'}`}>
+      <section className={`${inApp ? 'py-4' : 'px-6'} ${embed ? (inApp ? '' : 'py-6') : 'py-14 bg-[#F1F1F1]'}`}>
+        <div className={`${inApp ? '' : 'max-w-7xl mx-auto'} ${embed ? '' : '-mt-24'}`}>
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
               <div className="relative w-full sm:w-96">

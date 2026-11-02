@@ -47,6 +47,7 @@ function App() {
             <Route path="settings" element={<Settings />} />
             <Route path="quotation" element={<Quotation />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="component-viewer" element={<ComponentViewer inApp />} />
             <Route path="library" element={<Library />} />
             <Route path="users" element={<AdminOnly><Users /></AdminOnly>} />
           </Route>
