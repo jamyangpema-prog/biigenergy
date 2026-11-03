@@ -15,6 +15,7 @@ import Reports from '@/pages/Reports';
 import Users from '@/pages/Users';
 import Library from '@/pages/Library';
 import ComponentViewer from '@/pages/ComponentViewer';
+import Projects from '@/pages/Projects';
 import SupplierPrices from '@/pages/SupplierPrices';
 
 function Protected({ children }) {
@@ -45,6 +46,7 @@ function App() {
             element={<Protected><ProjectProvider><Shell /></ProjectProvider></Protected>}
           >
             <Route index element={<Dashboard />} />
+            <Route path="projects" element={<Projects />} />
             <Route path="costing" element={<EquipmentCosting />} />
             <Route path="settings" element={<Settings />} />
             <Route path="quotation" element={<Quotation />} />

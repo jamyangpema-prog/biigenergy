@@ -5,12 +5,16 @@ import { Card } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { ComponentDetails } from '@/components/ComponentDetails';
+import { ProjectPicker } from '@/components/ProjectPicker';
+import { useSearchParams } from 'react-router-dom';
 
 export default function Reports() {
   const { current, projects } = useProjects();
   const [items, setItems] = useState([]);
   const [all, setAll] = useState({}); // per-project items
   const [detailId, setDetailId] = useState(null);
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') || 'costing';
   const [rev, setRev] = useState(0);
 
   useEffect(() => {
@@ -40,11 +44,12 @@ export default function Reports() {
   return (
     <div className="space-y-5" data-testid="reports-page">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Reports</h1>
+        <ProjectPicker />
+        <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mt-3">Reports</h1>
         <p className="text-sm text-slate-500">Analytical breakdowns for {current.name}, with project comparison. Click any component for full details.</p>
       </div>
 
-      <Tabs defaultValue="costing" className="w-full">
+      <Tabs value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })} className="w-full">
         <TabsList className="bg-slate-100">
           <TabsTrigger value="costing" data-testid="tab-costing">Equipment Costing</TabsTrigger>
           <TabsTrigger value="component" data-testid="tab-component">Component Cost</TabsTrigger>

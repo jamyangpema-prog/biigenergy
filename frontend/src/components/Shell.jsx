@@ -1,20 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
-import { useProjects } from '@/lib/projects';
-import { LayoutDashboard, Table2, Settings, FileText, BarChart3, LogOut, Users, Plus, Boxes, Globe, TrendingUp } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
-import { api } from '@/lib/api';
+import { LayoutDashboard, Table2, Settings, FileText, BarChart3, LogOut, Users, Boxes, Globe, TrendingUp, FolderKanban } from 'lucide-react';
 
 const LOGO = 'https://customer-assets-jt897jd0.emergentagent.net/job_equipquote--13ttmu53/artifacts/57e4a1b4741c1c06_LOGO%20BE.png';
 
 const NAV = [
   { to: '/app', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/app/projects', label: 'Projects', icon: FolderKanban },
   { to: '/app/costing', label: 'Component Rates', icon: Table2 },
   { to: '/app/library', label: 'Component Library', icon: Boxes },
   { to: '/app/supplier-prices', label: 'Supplier Prices', icon: TrendingUp },
@@ -26,23 +19,7 @@ const NAV = [
 
 export default function Shell() {
   const { user, logout, can } = useAuth();
-  const { projects, currentId, selectProject, refresh } = useProjects();
   const nav = useNavigate();
-  const [showNew, setShowNew] = useState(false);
-  const [np, setNp] = useState({ name: '', client: '', description: '' });
-  const canAdd = user?.role === 'admin' || user?.role === 'estimator';
-
-  const createProject = async () => {
-    if (!np.name.trim()) return toast.error('Project name is required');
-    try {
-      const { data } = await api.post('/projects', np);
-      await refresh();
-      selectProject(data.id);
-      setShowNew(false);
-      setNp({ name: '', client: '', description: '' });
-      toast.success('Project created');
-    } catch { toast.error('Could not create project'); }
-  };
 
   const roleBadge = {
     admin: 'bg-slate-900 text-white',
@@ -89,25 +66,7 @@ export default function Shell() {
       </aside>
 
       <div className="flex-1 ml-64 flex flex-col min-w-0">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-10">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Project</span>
-            <Select value={currentId || ''} onValueChange={selectProject}>
-              <SelectTrigger className="w-80 bg-white border-slate-200" data-testid="project-selector">
-                <SelectValue placeholder="Select project" />
-              </SelectTrigger>
-              <SelectContent>
-                {projects.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {canAdd && (
-              <Button variant="outline" size="sm" onClick={() => setShowNew(true)} data-testid="topbar-add-project">
-                <Plus className="h-4 w-4 mr-1" /> Add project
-              </Button>
-            )}
-          </div>
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-end px-6 sticky top-0 z-10">
           <div className="flex items-center gap-4">
             <div className="text-right">
               <div className="text-sm font-medium text-slate-900" data-testid="user-name">{user?.name}</div>
@@ -130,20 +89,6 @@ export default function Shell() {
           <Outlet />
         </main>
       </div>
-      <Dialog open={showNew} onOpenChange={setShowNew}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Add project</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div><Label>Project name</Label><Input value={np.name} onChange={(e) => setNp({ ...np, name: e.target.value })} data-testid="topbar-project-name" /></div>
-            <div><Label>Client</Label><Input value={np.client} onChange={(e) => setNp({ ...np, client: e.target.value })} data-testid="topbar-project-client" /></div>
-            <div><Label>Description</Label><Input value={np.description} onChange={(e) => setNp({ ...np, description: e.target.value })} data-testid="topbar-project-description" /></div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNew(false)}>Cancel</Button>
-            <Button onClick={createProject} className="bg-slate-900 hover:bg-slate-800 text-white" data-testid="topbar-project-save">Create project</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

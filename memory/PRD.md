@@ -14,6 +14,8 @@
 - Add from library: Component Rates → "Add from library" searches all parts and adds to current project with qty (copies brand, part no, supplier, rate, hours, picture).
 - Component pictures via Emergent object storage: upload/change/remove in detail panel; applied to all lines of the same part; shown in Library, detail panel, Parts Catalogue pop-up. `/api/images/{path}` public.
 - Supplier Prices page (`/app/supplier-prices`): Nexar (Octopart) feed, AU/AUD, qty-1 price, stock per distributor; Apply button updates rate on all matching lines (logged in `rate_changes`); daily cron 6:00 Perth (`.emergent/crons.yml` → `/api/cron/supplier-feed`). Waiting for NEXAR_CLIENT_ID / NEXAR_CLIENT_SECRET.
+- Project selector removed from top bar. New **Projects** tab (`/app/projects`): cards with client, items, component/selling totals; New, Edit (name/client/description), Duplicate, Delete (admin); Rates/Quote/Settings buttons open that project. Project pages (Component Rates, Quotation, Reports, Costing Settings) have a small in-page project picker + "Manage" link.
+- Dashboard is clickable: KPI cards link to Projects / Component Library / Reports tabs (`?tab=labour|component|compare`), chart bars and new Projects table open that project's Component Rates, pie slices open the matching report.
 - Owner admin account jamyang.pema@gmail.com added.
 - Pending: Claude AI integration (user hasn't chosen purpose/model yet).
 

@@ -12,11 +12,12 @@ import { toast } from 'sonner';
 import { Plus, Copy, Trash2, ChevronDown, ChevronRight, Search, Download, Upload, FilePlus2, FileSpreadsheet, ArrowUpDown, Hash, Eye } from 'lucide-react';
 import { ComponentDetails } from '@/components/ComponentDetails';
 import { AddFromLibrary } from '@/components/AddFromLibrary';
+import { ProjectPicker } from '@/components/ProjectPicker';
 
 const BLANK = { description: '', brand: '', part_no: '', supplier: '', quantity: 1, rate: 0, install_hrs: 0, wiring_hrs: 0 };
 
 export default function EquipmentCosting() {
-  const { current, projects, refresh: refreshProjects } = useProjects();
+  const { current } = useProjects();
   const auth = useAuth();
   const { can } = auth;
   const canEdit = auth.user?.role !== 'viewer';
@@ -28,9 +29,7 @@ export default function EquipmentCosting() {
   const [q, setQ] = useState('');
   const [sort, setSort] = useState({ key: 'item_no', dir: 'asc' });
   const [showNew, setShowNew] = useState(false);
-  const [showProj, setShowProj] = useState(false);
   const [newItem, setNewItem] = useState(BLANK);
-  const [newProj, setNewProj] = useState({ name: '', client: '', description: '' });
   const fileRef = useRef(null);
 
   const loadItems = async () => {
@@ -81,19 +80,6 @@ export default function EquipmentCosting() {
   const del = async (id) => { if (!window.confirm('Delete item?')) return; await api.delete(`/items/${id}`); loadItems(); toast.success('Deleted'); };
   const renumber = async () => { await api.post(`/projects/${current.id}/renumber`); loadItems(); toast.success('Renumbered'); };
 
-  const createProject = async () => {
-    try {
-      await api.post('/projects', { name: newProj.name || 'New Project', client: newProj.client, description: newProj.description });
-      setShowProj(false); setNewProj({ name: '', client: '', description: '' });
-      await refreshProjects(); toast.success('Project created');
-    } catch { toast.error('Failed'); }
-  };
-  const dupProject = async () => { await api.post(`/projects/${current.id}/duplicate`); await refreshProjects(); toast.success('Project duplicated'); };
-  const delProject = async () => {
-    if (projects.length <= 1) return toast.error('At least one project required');
-    if (!window.confirm(`Delete project "${current.name}"? This cannot be undone.`)) return;
-    await api.delete(`/projects/${current.id}`); await refreshProjects(); toast.success('Deleted');
-  };
   const exportXL = async () => {
     const res = await api.get(`/projects/${current.id}/export/excel`, { responseType: 'blob' });
     const url = URL.createObjectURL(res.data); const a = document.createElement('a');
@@ -129,7 +115,8 @@ export default function EquipmentCosting() {
     <div className="space-y-4" data-testid="equipment-costing">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">{current.name}</h1>
+          <ProjectPicker />
+          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mt-3">Component Rates</h1>
           <p className="text-sm text-slate-500">{current.description}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -140,9 +127,6 @@ export default function EquipmentCosting() {
           <Button variant="outline" onClick={exportXL} data-testid="btn-export-xl"><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
           <Button variant="outline" onClick={exportPDF} data-testid="btn-export-pdf"><Download className="h-4 w-4 mr-1" /> PDF</Button>
           {canEdit && <Button variant="outline" onClick={renumber} data-testid="btn-renumber"><Hash className="h-4 w-4 mr-1" /> Renumber</Button>}
-          {canEdit && <Button variant="outline" onClick={() => setShowProj(true)} data-testid="btn-new-project"><FilePlus2 className="h-4 w-4 mr-1" /> New project</Button>}
-          {canEdit && <Button variant="outline" onClick={dupProject} data-testid="btn-dup-project"><Copy className="h-4 w-4 mr-1" /> Duplicate</Button>}
-          {can('manage_users') && <Button variant="outline" onClick={delProject} className="text-red-600 hover:text-red-700" data-testid="btn-del-project"><Trash2 className="h-4 w-4" /></Button>}
         </div>
       </div>
 
@@ -266,21 +250,6 @@ export default function EquipmentCosting() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowNew(false)}>Cancel</Button>
             <Button onClick={addItem} className="bg-slate-900 text-white" data-testid="btn-save-item">Add item</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showProj} onOpenChange={setShowProj}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>New project</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div><Label>Name</Label><Input value={newProj.name} onChange={(e) => setNewProj({ ...newProj, name: e.target.value })} data-testid="new-project-name" /></div>
-            <div><Label>Client</Label><Input value={newProj.client} onChange={(e) => setNewProj({ ...newProj, client: e.target.value })} /></div>
-            <div><Label>Description</Label><Input value={newProj.description} onChange={(e) => setNewProj({ ...newProj, description: e.target.value })} /></div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowProj(false)}>Cancel</Button>
-            <Button onClick={createProject} className="bg-slate-900 text-white" data-testid="btn-save-project">Create</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

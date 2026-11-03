@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Save } from 'lucide-react';
+import { ProjectPicker } from '@/components/ProjectPicker';
 
 export default function Settings() {
   const { current, refresh } = useProjects();
@@ -34,7 +35,8 @@ export default function Settings() {
   return (
     <div className="space-y-6 max-w-4xl" data-testid="settings-page">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Costing Settings</h1>
+        <ProjectPicker />
+        <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mt-3">Costing Settings</h1>
         <p className="text-sm text-slate-500">Global cost assumptions for <strong>{p.name}</strong>. Individual items can override any value.</p>
       </div>
 

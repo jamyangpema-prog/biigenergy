@@ -4,6 +4,7 @@ import { useProjects } from '@/lib/projects';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download, FileSpreadsheet } from 'lucide-react';
+import { ProjectPicker } from '@/components/ProjectPicker';
 
 export default function Quotation() {
   const { current } = useProjects();
@@ -32,7 +33,8 @@ export default function Quotation() {
     <div className="space-y-5 max-w-5xl" data-testid="quotation-page">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Quotation Summary</h1>
+          <ProjectPicker />
+          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mt-3">Quotation Summary</h1>
           <p className="text-sm text-slate-500">{p.name} · {p.client}</p>
         </div>
         <div className="flex gap-2">
