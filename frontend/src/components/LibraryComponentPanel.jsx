@@ -11,13 +11,19 @@ export const CATEGORIES = ['Busbars & Insulators', 'Cable Ducting', 'Chassis', '
 export const UNITS = ['ea', 'm', 'set', 'pack', 'box', 'pair', 'roll', 'kg', 'lot'];
 const FIELDS = [['description', 'Equipment description', 'text'], ['category', 'Category', 'text', 'cat-list'], ['brand', 'Brand', 'text'],
   ['part_no', 'Part number', 'text'], ['supplier', 'Supplier', 'text'], ['uom', 'Unit', 'text', 'unit-list'],
-  ['rate', 'Rate per unit (AUD)', 'number'], ['install_hrs', 'Default install hours', 'number'], ['wiring_hrs', 'Default wiring hours', 'number']];
+  ['rate', 'Rate per unit (AUD)', 'number'], ['install_hrs', 'Default install hours', 'number'], ['wiring_hrs', 'Default wiring hours', 'number'],
+  ['length_mm', 'Length L (mm)', 'number'], ['width_mm', 'Width W (mm)', 'number'], ['height_mm', 'Height H (mm)', 'number'], ['thickness_mm', 'Thickness (mm)', 'number']];
+const DIM_KEYS = ['length_mm', 'width_mm', 'height_mm', 'thickness_mm'];
+export const fmtDims = (c) => ([c?.length_mm, c?.width_mm, c?.height_mm].some((v) => v != null)
+  ? `${[c.length_mm, c.width_mm, c.height_mm].map((v) => (v != null ? fmtNum(v, 0) : '—')).join(' × ')} mm` : '—');
+export const fmtThk = (c) => (c?.thickness_mm != null ? `${fmtNum(c.thickness_mm, 1)} mm` : '—');
 
 export function ComponentForm({ initial, onCancel, onSave, saving, note }) {
   const [f, setF] = useState(() => Object.fromEntries(FIELDS.map(([k]) => [k, initial?.[k] ?? (k === 'uom' ? 'ea' : '')])));
   const submit = () => {
     if (!String(f.description).trim()) return toast.error('Description is required');
-    onSave({ ...initial, ...f, rate: parseFloat(f.rate) || 0, install_hrs: parseFloat(f.install_hrs) || 0, wiring_hrs: parseFloat(f.wiring_hrs) || 0 });
+    const dims = Object.fromEntries(DIM_KEYS.map((k) => [k, f[k] === '' || f[k] == null ? null : parseFloat(f[k])]));
+    onSave({ ...initial, ...f, ...dims, rate: parseFloat(f.rate) || 0, install_hrs: parseFloat(f.install_hrs) || 0, wiring_hrs: parseFloat(f.wiring_hrs) || 0 });
   };
   return (
     <div className="space-y-4" data-testid="component-form">
@@ -101,6 +107,8 @@ export function LibraryComponentPanel({ componentId, onClose, onChanged }) {
                 <Row label="Rate per unit" value={c.rate ? fmtAUD(c.rate) : 'Rate needed'} strong />
                 <Row label="Default install hours" value={`${fmtNum(c.install_hrs, 2)} hr`} />
                 <Row label="Default wiring hours" value={`${fmtNum(c.wiring_hrs, 2)} hr`} />
+                <Row label="Dimensions (L × W × H)" value={fmtDims(c)} />
+                <Row label="Thickness" value={fmtThk(c)} />
               </div>
               <div className="rounded-lg border border-slate-200 bg-white p-4">
                 <div className="flex items-center gap-2 mb-2"><FolderKanban className="h-4 w-4 text-red-600" /><h4 className="text-xs font-semibold uppercase tracking-wider text-slate-600">Used in projects</h4></div>

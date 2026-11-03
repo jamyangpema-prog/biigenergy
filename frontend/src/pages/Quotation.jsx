@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api, fmtAUD, fmtNum } from '@/lib/api';
 import { useProjects } from '@/lib/projects';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Download, FileSpreadsheet } from 'lucide-react';
+import { DownloadMenu } from '@/components/DownloadMenu';
 import { ProjectPicker } from '@/components/ProjectPicker';
 
 export default function Quotation() {
@@ -18,16 +17,6 @@ export default function Quotation() {
   if (!current || !q) return null;
   const p = q.project;
 
-  const exportPDF = async () => {
-    const r = await api.get(`/projects/${p.id}/export/pdf`, { responseType: 'blob' });
-    const url = URL.createObjectURL(r.data); const a = document.createElement('a');
-    a.href = url; a.download = `${p.name}_quote.pdf`; a.click(); URL.revokeObjectURL(url);
-  };
-  const exportXL = async () => {
-    const r = await api.get(`/projects/${p.id}/export/excel`, { responseType: 'blob' });
-    const url = URL.createObjectURL(r.data); const a = document.createElement('a');
-    a.href = url; a.download = `${p.name}.xlsx`; a.click(); URL.revokeObjectURL(url);
-  };
 
   return (
     <div className="space-y-5 max-w-5xl" data-testid="quotation-page">
@@ -37,10 +26,7 @@ export default function Quotation() {
           <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mt-3">Quotation Summary</h1>
           <p className="text-sm text-slate-500">{p.name} · {p.client}</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={exportXL} data-testid="q-export-xl"><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
-          <Button onClick={exportPDF} className="bg-slate-900 hover:bg-slate-800 text-white" data-testid="q-export-pdf"><Download className="h-4 w-4 mr-1" /> Download PDF</Button>
-        </div>
+        <DownloadMenu url={`/projects/${p.id}/export/quote`} filename={`${p.name}_quotation`} testid="quote-download" />
       </div>
 
       <Card className="p-8 border-slate-200 bg-white">

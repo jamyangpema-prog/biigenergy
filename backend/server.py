@@ -13,7 +13,7 @@ from typing import List, Optional, Literal
 from datetime import datetime, timezone, timedelta
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
@@ -313,6 +313,10 @@ class Component(BaseModel):
     wiring_hrs: float = 0
     category: Optional[str] = None
     image_path: Optional[str] = None
+    length_mm: Optional[float] = None
+    width_mm: Optional[float] = None
+    height_mm: Optional[float] = None
+    thickness_mm: Optional[float] = None
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
@@ -757,6 +761,134 @@ async def export_pdf(pid: str, user: dict = Depends(current_user)):
     fn = f"{p['name'].replace(' ', '_')}_quotation.pdf"
     return StreamingResponse(buf, media_type='application/pdf',
                              headers={'Content-Disposition': f'attachment; filename="{fn}"'})
+
+# ================= Generic table downloads =================
+
+def _dims(c: dict) -> str:
+    vals = [c.get('length_mm'), c.get('width_mm'), c.get('height_mm')]
+    return ' x '.join(f"{v:g}" if v is not None else '-' for v in vals) if any(v is not None for v in vals) else ''
+
+def table_file(name: str, title: str, subtitle: str, headers: list, rows: list, fmt: str, totals: Optional[list] = None, widths: Optional[dict] = None):
+    safe = re.sub(r'[^A-Za-z0-9_-]+', '_', name).strip('_') or 'export'
+    if fmt == 'xlsx':
+        wb = openpyxl.Workbook(); ws = wb.active; ws.title = title[:30] or 'Sheet'
+        ws.cell(1, 1, title).font = Font(bold=True, size=14)
+        ws.cell(2, 1, subtitle)
+        for col, h in enumerate(headers, 1):
+            c = ws.cell(4, col, h); c.fill = PatternFill('solid', fgColor='0F172A'); c.font = Font(color='FFFFFF', bold=True)
+        for r, row in enumerate(rows, start=5):
+            for col, v in enumerate(row, 1):
+                ws.cell(r, col, v)
+        if totals:
+            for col, v in enumerate(totals, 1):
+                ws.cell(len(rows) + 5, col, v).font = Font(bold=True)
+        for col, h in enumerate(headers, 1):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = (widths or {}).get(col - 1, 16)
+        ws.freeze_panes = 'A5'
+        buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+        return StreamingResponse(buf, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                                 headers={'Content-Disposition': f'attachment; filename="{safe}.xlsx"'})
+    if fmt != 'pdf':
+        raise HTTPException(400, "fmt must be pdf or xlsx")
+    buf = io.BytesIO()
+    page = landscape(A4)
+    doc = SimpleDocTemplate(buf, pagesize=page, leftMargin=10*mm, rightMargin=10*mm, topMargin=12*mm, bottomMargin=12*mm, title=title)
+    styles = getSampleStyleSheet()
+    cell = ParagraphStyle('c', parent=styles['Normal'], fontSize=7.5, leading=9)
+    head = ParagraphStyle('h', parent=cell, textColor=colors.white, fontName='Helvetica-Bold')
+    fmt_v = lambda v: f"{v:,.2f}" if isinstance(v, float) else ('' if v is None else str(v))
+    data = [[Paragraph(h, head) for h in headers]]
+    data += [[Paragraph(fmt_v(v), cell) for v in row] for row in rows]
+    if totals:
+        data.append([Paragraph(f"<b>{fmt_v(v)}</b>", cell) for v in totals])
+    avail = page[0] - 20*mm
+    weights = [(widths or {}).get(i, 16) for i in range(len(headers))]
+    t = Table(data, colWidths=[avail * w / sum(weights) for w in weights], repeatRows=1)
+    style = [('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0F172A')), ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#CBD5E1')),
+             ('VALIGN', (0, 0), (-1, -1), 'TOP'), ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')])]
+    if totals:
+        style.append(('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#E2E8F0')))
+    t.setStyle(TableStyle(style))
+    sub = ParagraphStyle('s', parent=styles['Normal'], textColor=colors.HexColor('#475569'), fontSize=9)
+    story = [Paragraph("BIIG ENERGY · BiiG Quote", sub), Paragraph(title, styles['Heading2']),
+             Paragraph(f"{subtitle} · {datetime.now().strftime('%d %b %Y')}", sub), Spacer(1, 4*mm), t]
+    doc.build(story); buf.seek(0)
+    return StreamingResponse(buf, media_type='application/pdf', headers={'Content-Disposition': f'attachment; filename="{safe}.pdf"'})
+
+@api.get("/library/export")
+async def export_library(fmt: str = 'pdf', user: dict = Depends(current_user)):
+    rows_ = await library(user)
+    headers = ['Category', 'Component', 'Brand', 'Part No', 'Supplier', 'Unit', 'Rate / Unit', 'L x W x H (mm)', 'Thickness (mm)', 'Install hrs', 'Wiring hrs', 'Used on lines']
+    rows = [[r['category'], r['description'], r.get('brand') or '', r.get('part_no') or '', r.get('supplier') or '', r.get('uom') or 'ea',
+             float(r.get('rate') or 0), _dims(r), r.get('thickness_mm'), float(r.get('install_hrs') or 0), float(r.get('wiring_hrs') or 0), r['lines']] for r in rows_]
+    return table_file('Component_Library', 'Component Library', f"{len(rows)} components", headers, rows, fmt, widths={0: 16, 1: 40, 7: 18})
+
+COSTING_COLS = [('item_no', '#'), ('description', 'Description'), ('brand', 'Brand'), ('part_no', 'Part No'), ('supplier', 'Supplier'),
+                ('quantity', 'Qty'), ('rate', 'Rate'), ('freight', 'Freight'), ('margin', 'Margin'), ('component_cost', 'CC'),
+                ('total_component_cost', 'TCC'), ('install_hrs', 'Install hr'), ('wiring_hrs', 'Wiring hr'), ('labour_cost', 'Labour'), ('selling_price', 'Selling Price')]
+REPORT_COLS = {
+    'costing': [('item_no', '#'), ('description', 'Description'), ('brand', 'Brand'), ('quantity', 'Qty'), ('rate', 'Rate'), ('freight', 'Freight'),
+                ('margin', 'Margin'), ('component_cost', 'CC'), ('total_component_cost', 'TCC'), ('labour_cost', 'Labour'), ('selling_price', 'SP')],
+    'component': [('item_no', '#'), ('description', 'Description'), ('quantity', 'Qty'), ('rate', 'Rate'), ('freight', 'Freight'), ('margin', 'Margin'),
+                  ('component_cost', 'Comp Cost'), ('total_component_cost', 'Total CC')],
+    'labour': [('item_no', '#'), ('description', 'Description'), ('install_hrs', 'Install hr'), ('wiring_hrs', 'Wiring hr'),
+               ('total_install_hrs', 'Total hr'), ('effective_labour_rate', '$/hr'), ('labour_cost', 'Labour Cost')],
+    'sp': [('item_no', '#'), ('description', 'Description'), ('quantity', 'Qty'), ('total_component_cost', 'TCC'), ('labour_cost', 'Labour'), ('selling_price', 'Selling Price')],
+}
+REPORT_TITLES = {'costing': 'Equipment Costing', 'component': 'Component Cost', 'labour': 'Install & Labour', 'sp': 'Selling Price', 'compare': 'Project Comparison'}
+SUM_SKIP = {'item_no', 'rate', 'effective_labour_rate', 'component_cost', 'freight', 'margin'}
+
+async def _project_lines(pid: str):
+    p = await db.projects.find_one({'id': pid}, {'_id': 0})
+    if not p:
+        raise HTTPException(404)
+    items = await db.items.find({'project_id': pid}, {'_id': 0}).sort('item_no', 1).to_list(5000)
+    return p, [calc_item(i, p['settings']) for i in items]
+
+def _lines_table(lines: list, cols: list):
+    rows = [[(float(l.get(k) or 0) if k not in ('item_no', 'description', 'brand', 'part_no', 'supplier') else (l.get(k) or '')) for k, _ in cols] for l in lines]
+    totals = ['Total'] + [round(sum(float(l.get(k) or 0) for l in lines), 2) if isinstance(rows[0][i] if rows else '', float) and k not in SUM_SKIP else ''
+                          for i, (k, _) in enumerate(cols) if i > 0]
+    totals[0], totals[1] = '', 'Total'
+    return [h for _, h in cols], rows, totals
+
+@api.get("/projects/{pid}/export/costing")
+async def export_costing(pid: str, fmt: str = 'pdf', user: dict = Depends(current_user)):
+    if fmt == 'xlsx':
+        return await export_excel(pid, user)
+    p, lines = await _project_lines(pid)
+    headers, rows, totals = _lines_table(lines, COSTING_COLS)
+    return table_file(f"{p['name']}_costing", f"Costing — {p['name']}", p.get('client') or '', headers, rows, fmt, totals, widths={0: 6, 1: 40})
+
+@api.get("/projects/{pid}/export/report")
+async def export_report(pid: str, tab: str = 'costing', fmt: str = 'pdf', user: dict = Depends(current_user)):
+    if tab not in REPORT_TITLES:
+        raise HTTPException(400, "Unknown report")
+    if tab == 'compare':
+        rows = []
+        for pr in await db.projects.find({}, {'_id': 0}).to_list(1000):
+            _, ls = await _project_lines(pr['id'])
+            rows.append([pr['name'], len(ls), round(sum(l['total_component_cost'] for l in ls), 2), round(sum(l['labour_cost'] for l in ls), 2), round(sum(l['selling_price'] for l in ls), 2)])
+        totals = ['Total', sum(r[1] for r in rows)] + [round(sum(r[i] for r in rows), 2) for i in (2, 3, 4)]
+        return table_file('Project_Comparison_report', 'Report — Project Comparison', f"{len(rows)} projects",
+                          ['Project', 'Items', 'Component Cost', 'Labour Cost', 'Selling Price'], rows, fmt, totals, widths={0: 40})
+    p, lines = await _project_lines(pid)
+    headers, rows, totals = _lines_table(lines, REPORT_COLS[tab])
+    return table_file(f"{p['name']}_{REPORT_TITLES[tab]}_report", f"Report — {REPORT_TITLES[tab]} — {p['name']}", p.get('client') or '',
+                      headers, rows, fmt, totals, widths={0: 6, 1: 40})
+
+@api.get("/projects/{pid}/export/quote")
+async def export_quote(pid: str, fmt: str = 'pdf', user: dict = Depends(current_user)):
+    if fmt == 'pdf':
+        return await export_pdf(pid, user)
+    q = await quote(pid, user)
+    p = q['project']
+    rows = [[l['item_no'], l['description'], l.get('brand') or '', l.get('part_no') or '', l['quantity'], l['uom'], l['unit_cost'], l['total_ex_gst']] for l in q['lines']]
+    rows += [['', '', '', '', '', '', 'Subtotal (ex GST)', q['subtotal_ex_gst']],
+             ['', '', '', '', '', '', f"GST ({int(p['settings']['gst_rate']*100)}%)", q['gst']]]
+    return table_file(f"{p['name']}_quotation", f"Quotation — {p['name']}", p.get('client') or '',
+                      ['#', 'Description', 'Brand', 'Part No', 'Qty', 'UoM', 'Unit (ex GST)', 'Total (ex GST)'], rows, fmt,
+                      ['', '', '', '', '', '', 'TOTAL (inc GST)', q['total_inc_gst']], widths={0: 6, 1: 45, 6: 18})
 
 # ================= Backup / restore =================
 

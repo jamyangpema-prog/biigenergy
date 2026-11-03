@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
+import { confirmLeave, setUnsaved } from '@/lib/unsaved';
 import { LayoutDashboard, Table2, Settings, FileText, BarChart3, LogOut, Users, Boxes, TrendingUp, FolderKanban } from 'lucide-react';
 
 const LOGO = 'https://customer-assets-jt897jd0.emergentagent.net/job_equipquote--13ttmu53/artifacts/57e4a1b4741c1c06_LOGO%20BE.png';
@@ -40,6 +41,7 @@ export default function Shell() {
           {NAV.map((n) => (
             <NavLink
               key={n.to} to={n.to} end={n.end}
+              onClick={(e) => { if (!confirmLeave()) e.preventDefault(); }}
               data-testid={`nav-${n.label.toLowerCase().replace(/ /g, '-')}`}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
@@ -52,7 +54,7 @@ export default function Shell() {
             </NavLink>
           ))}
           {can('manage_users') && (
-            <NavLink to="/app/users" data-testid="nav-users"
+            <NavLink to="/app/users" data-testid="nav-users" onClick={(e) => { if (!confirmLeave()) e.preventDefault(); }}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
                   isActive ? 'bg-slate-800 text-white border-l-2 border-red-600 pl-[10px]'
@@ -78,7 +80,7 @@ export default function Shell() {
               {user?.role?.toUpperCase()}
             </span>
             <button
-              onClick={() => { logout(); nav('/login'); }}
+              onClick={() => { if (!confirmLeave()) return; setUnsaved(false); logout(); nav('/login'); }}
               data-testid="logout-btn"
               className="text-slate-500 hover:text-slate-900 p-2 rounded hover:bg-slate-100"
               title="Log out"

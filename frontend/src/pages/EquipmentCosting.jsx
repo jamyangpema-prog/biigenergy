@@ -10,10 +10,17 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { Plus, Copy, Trash2, ChevronDown, ChevronRight, Search, Download, Upload, FileSpreadsheet, ArrowUpDown, Hash, Eye, ArrowLeft } from 'lucide-react';
+import { Plus, Copy, Trash2, ChevronDown, ChevronRight, Search, Upload, ArrowUpDown, Hash, Eye, ArrowLeft, Check, Undo2 } from 'lucide-react';
+import { DownloadMenu } from '@/components/DownloadMenu';
+import { confirmLeave, setUnsaved } from '@/lib/unsaved';
 import { LineDetails } from '@/components/LineDetails';
 import { AddFromLibrary } from '@/components/AddFromLibrary';
 import { ProjectPicker } from '@/components/ProjectPicker';
+
+const NUM_KEYS = ['quantity', 'rate', 'install_hrs', 'wiring_hrs'];
+const OVR_KEYS = ['freight_pct_override', 'margin_pct_override', 'labour_rate_override'];
+const parseDraft = (d) => Object.fromEntries(Object.entries(d).map(([k, v]) => [k,
+  OVR_KEYS.includes(k) ? (v === '' ? null : parseFloat(v)) : NUM_KEYS.includes(k) ? (parseFloat(v) || 0) : v]));
 
 const BLANK = { description: '', brand: '', part_no: '', supplier: '', quantity: 1, rate: 0, install_hrs: 0, wiring_hrs: 0 };
 
@@ -36,6 +43,21 @@ export default function EquipmentCosting() {
   const [showNew, setShowNew] = useState(false);
   const [newItem, setNewItem] = useState(BLANK);
   const fileRef = useRef(null);
+  const [drafts, setDrafts] = useState({});
+  const dirtyCount = Object.keys(drafts).length;
+  useEffect(() => { setUnsaved(dirtyCount > 0); }, [dirtyCount]);
+  useEffect(() => () => setUnsaved(false), []);
+  useEffect(() => { setDrafts({}); }, [pid]);
+
+  const val = (it, k) => drafts[it.id]?.[k] ?? (it[k] ?? '');
+  const edit = (it, k, v) => setDrafts((d) => {
+    const row = { ...(d[it.id] || {}) };
+    if (String(it[k] ?? '') === String(v)) delete row[k]; else row[k] = v;
+    const n = { ...d };
+    if (Object.keys(row).length) n[it.id] = row; else delete n[it.id];
+    return n;
+  });
+  const discard = (id) => setDrafts((d) => { const n = { ...d }; delete n[id]; return n; });
 
   const loadItems = async () => {
     if (!current) return;
@@ -70,9 +92,14 @@ export default function EquipmentCosting() {
     try {
       const { data } = await api.put(`/items/${id}`, merged);
       setItems((arr) => arr.map((i) => i.id === id ? data : i));
+      return true;
     } catch (e) {
-      toast.error('Update failed'); loadItems();
+      toast.error('Update failed'); loadItems(); return false;
     }
+  };
+  const saveRow = async (id) => {
+    if (!drafts[id]) return;
+    if (await updateItem(id, parseDraft(drafts[id]))) { discard(id); toast.success('Line saved'); }
   };
   const addItem = async () => {
     try {
@@ -85,16 +112,6 @@ export default function EquipmentCosting() {
   const del = async (id) => { if (!window.confirm('Delete item?')) return; await api.delete(`/items/${id}`); loadItems(); toast.success('Deleted'); };
   const renumber = async () => { await api.post(`/projects/${current.id}/renumber`); loadItems(); toast.success('Renumbered'); };
 
-  const exportXL = async () => {
-    const res = await api.get(`/projects/${current.id}/export/excel`, { responseType: 'blob' });
-    const url = URL.createObjectURL(res.data); const a = document.createElement('a');
-    a.href = url; a.download = `${current.name}.xlsx`; a.click(); URL.revokeObjectURL(url);
-  };
-  const exportPDF = async () => {
-    const res = await api.get(`/projects/${current.id}/export/pdf`, { responseType: 'blob' });
-    const url = URL.createObjectURL(res.data); const a = document.createElement('a');
-    a.href = url; a.download = `${current.name}_quote.pdf`; a.click(); URL.revokeObjectURL(url);
-  };
   const importXL = async (file) => {
     const fd = new FormData(); fd.append('file', file);
     try {
@@ -120,7 +137,7 @@ export default function EquipmentCosting() {
     <div className="space-y-4" data-testid="equipment-costing">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link to="/app/costing" className="text-xs text-slate-500 hover:text-slate-900 inline-flex items-center gap-1 mb-2" data-testid="costing-back"><ArrowLeft className="h-3.5 w-3.5" /> All projects</Link>
+          <Link to="/app/costing" onClick={(e) => { if (!confirmLeave()) e.preventDefault(); }} className="text-xs text-slate-500 hover:text-slate-900 inline-flex items-center gap-1 mb-2" data-testid="costing-back"><ArrowLeft className="h-3.5 w-3.5" /> All projects</Link>
           <ProjectPicker onChange={(id) => nav(`/app/costing/${id}`)} />
           <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mt-3">Costing</h1>
           <p className="text-sm text-slate-500">{current.description}</p>
@@ -130,8 +147,7 @@ export default function EquipmentCosting() {
           {canEdit && <Button onClick={() => setShowNew(true)} className="bg-slate-900 hover:bg-slate-800 text-white" data-testid="btn-add-item"><Plus className="h-4 w-4 mr-1" /> Add item</Button>}
           {canEdit && <Button variant="outline" onClick={() => setShowLib(true)} data-testid="btn-add-from-library"><Search className="h-4 w-4 mr-1" /> Add from library</Button>}
           {canEdit && <Button variant="outline" onClick={() => fileRef.current?.click()} data-testid="btn-import"><Upload className="h-4 w-4 mr-1" /> Import</Button>}
-          <Button variant="outline" onClick={exportXL} data-testid="btn-export-xl"><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
-          <Button variant="outline" onClick={exportPDF} data-testid="btn-export-pdf"><Download className="h-4 w-4 mr-1" /> PDF</Button>
+          <DownloadMenu url={`/projects/${current.id}/export/costing`} filename={`${current.name}_costing`} testid="costing-download" />
           {canEdit && <Button variant="outline" onClick={renumber} data-testid="btn-renumber"><Hash className="h-4 w-4 mr-1" /> Renumber</Button>}
         </div>
       </div>
@@ -151,7 +167,10 @@ export default function EquipmentCosting() {
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search description, brand, supplier…"
                    className="pl-8" data-testid="search-input" />
           </div>
-          <div className="text-xs text-slate-500">{filtered.length} of {items.length} shown</div>
+          <div className="flex items-center gap-3">
+            {dirtyCount > 0 && <span className="text-xs font-medium text-amber-700" data-testid="unsaved-count">{dirtyCount} line{dirtyCount === 1 ? '' : 's'} with unsaved changes</span>}
+            <div className="text-xs text-slate-500">{filtered.length} of {items.length} shown</div>
+          </div>
         </div>
         <div className="table-scroll">
           <table className="w-full text-sm" data-testid="items-table">
@@ -166,7 +185,7 @@ export default function EquipmentCosting() {
                 <th className="px-3 py-3 text-right w-20">Qty</th>
                 <th className="px-3 py-3 text-right w-28"><SortH k="rate" cls="justify-end">Rate</SortH></th>
                 <th className="px-3 py-3 text-right w-32"><SortH k="selling_price" cls="justify-end">Selling Price</SortH></th>
-                <th className="w-24 px-2 py-3"></th>
+                <th className="w-24 px-2 py-3 whitespace-nowrap"></th>
               </tr>
             </thead>
             <tbody>
@@ -178,9 +197,11 @@ export default function EquipmentCosting() {
                   No items. {canEdit && <><button onClick={() => setShowNew(true)} className="text-blue-600 hover:underline">Add one</button> or <button onClick={() => setShowLib(true)} className="text-blue-600 hover:underline" data-testid="empty-add-from-library">pick from the library</button></>}
                 </td></tr>
               )}
-              {filtered.map((it) => (
+              {filtered.map((it) => { const dirty = !!drafts[it.id]; const cell = (k, type, align) => (
+                <CellInput disabled={!canEdit} type={type} align={align} value={val(it, k)} onChange={(v) => edit(it, k, v)} onEnter={() => saveRow(it.id)} testid={`cell-${k}-${it.item_no}`} />
+              ); return (
                 <React.Fragment key={it.id}>
-                  <tr className="border-t border-slate-200 hover:bg-slate-50" data-testid={`row-${it.item_no}`}>
+                  <tr className={`border-t border-slate-200 ${dirty ? 'bg-amber-50' : 'hover:bg-slate-50'}`} data-testid={`row-${it.item_no}`}>
                     <td className="px-2 py-2 text-slate-400">
                       <button onClick={() => toggle(it.id)} data-testid={`expand-${it.item_no}`}>
                         {expanded.has(it.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -190,14 +211,20 @@ export default function EquipmentCosting() {
                     <td className="px-3 py-2">
                       <button onClick={() => setDetailId(it.id)} className="text-left text-sm text-slate-900 hover:text-red-700 hover:underline" title="Open details" data-testid={`desc-${it.item_no}`}>{it.description || 'Untitled component'}</button>
                     </td>
-                    <td className="px-3 py-2"><CellInput disabled={!canEdit} value={it.brand} onCommit={(v) => updateItem(it.id, { brand: v })} /></td>
-                    <td className="px-3 py-2"><CellInput disabled={!canEdit} value={it.part_no} onCommit={(v) => updateItem(it.id, { part_no: v })} /></td>
-                    <td className="px-3 py-2"><CellInput disabled={!canEdit} value={it.supplier} onCommit={(v) => updateItem(it.id, { supplier: v })} /></td>
-                    <td className="px-3 py-2"><CellInput disabled={!canEdit} type="number" value={it.quantity} onCommit={(v) => updateItem(it.id, { quantity: parseFloat(v) || 0 })} align="right" /></td>
-                    <td className="px-3 py-2"><CellInput disabled={!canEdit} type="number" value={it.rate} onCommit={(v) => updateItem(it.id, { rate: parseFloat(v) || 0 })} align="right" /></td>
+                    <td className="px-3 py-2">{cell('brand')}</td>
+                    <td className="px-3 py-2">{cell('part_no')}</td>
+                    <td className="px-3 py-2">{cell('supplier')}</td>
+                    <td className="px-3 py-2">{cell('quantity', 'number', 'right')}</td>
+                    <td className="px-3 py-2">{cell('rate', 'number', 'right')}</td>
                     <td className="px-3 py-2 fin text-right font-semibold text-slate-900">{fmtAUD(it.selling_price)}</td>
                     <td className="px-2 py-2">
                       <div className="flex items-center gap-1">
+                        {dirty && (
+                          <>
+                            <button onClick={() => saveRow(it.id)} className="px-2 py-1 rounded bg-slate-900 text-white text-xs inline-flex items-center gap-1 hover:bg-slate-800" title="Save changes" data-testid={`save-row-${it.item_no}`}><Check className="h-3.5 w-3.5" />Save</button>
+                            <button onClick={() => discard(it.id)} className="px-2 py-1 rounded border border-slate-300 bg-white text-xs inline-flex items-center gap-1 hover:bg-slate-50" title="Discard changes" data-testid={`discard-row-${it.item_no}`}><Undo2 className="h-3.5 w-3.5" />Discard</button>
+                          </>
+                        )}
                         <button onClick={() => setDetailId(it.id)} className="text-slate-400 hover:text-slate-900 p-1" title="View details" data-testid={`view-${it.item_no}`}><Eye className="h-4 w-4" /></button>
                         {canEdit && (
                           <>
@@ -211,12 +238,12 @@ export default function EquipmentCosting() {
                   {expanded.has(it.id) && (
                     <tr className="bg-slate-50/70 border-t border-slate-200">
                       <td colSpan={10} className="px-6 py-5">
-                        <CostingDetail item={it} settings={current.settings} canEdit={canEdit} onCommit={(patch) => updateItem(it.id, patch)} />
+                        <CostingDetail item={it} canEdit={canEdit} cell={cell} />
                       </td>
                     </tr>
                   )}
                 </React.Fragment>
-              ))}
+              ); })}
             </tbody>
             {items.length > 0 && (
               <tfoot>
@@ -264,44 +291,41 @@ export default function EquipmentCosting() {
   );
 }
 
-function CellInput({ value, onCommit, type = 'text', align = 'left', disabled = false }) {
-  const [v, setV] = useState(value ?? '');
-  useEffect(() => setV(value ?? ''), [value]);
+function CellInput({ value, onChange, onEnter, testid, type = 'text', align = 'left', disabled = false }) {
   if (disabled) return <div className={`fin text-sm text-slate-700 ${align === 'right' ? 'text-right' : ''}`}>{type === 'number' ? fmtNum(value, 2) : (value || '—')}</div>;
   return (
-    <input value={v} onChange={(e) => setV(e.target.value)} type={type}
-           onBlur={() => v !== value && onCommit(v)}
-           onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+    <input value={value} onChange={(e) => onChange(e.target.value)} type={type} step="any" data-testid={testid}
+           onKeyDown={(e) => { if (e.key === 'Enter') onEnter?.(); }}
            className={`editable-cell ${align === 'right' ? 'text-right' : ''}`} />
   );
 }
 
-function CostingDetail({ item, settings, onCommit, canEdit }) {
+function CostingDetail({ item, canEdit, cell }) {
   const F = item.freight, M = item.margin, CC = item.component_cost, TCC = item.total_component_cost;
   const TI = item.total_install_hrs, LC = item.labour_cost, SP = item.selling_price;
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3" data-testid={`detail-${item.item_no}`}>
-      <Field label="Rate (R)" editable={canEdit}><CellInput disabled={!canEdit} type="number" value={item.rate} onCommit={(v) => onCommit({ rate: parseFloat(v) || 0 })} align="right" /></Field>
+      <Field label="Rate (R)" editable={canEdit}>{cell('rate', 'number', 'right')}</Field>
       <Field label={`Freight % (${((item.effective_freight_pct)*100).toFixed(0)}%)`}><div className="calc-cell text-right">{fmtAUD(F)}</div></Field>
       <Field label={`Margin % (${((item.effective_margin_pct)*100).toFixed(0)}%)`}><div className="calc-cell text-right">{fmtAUD(M)}</div></Field>
       <Field label="Comp Cost (CC = R+F+M)"><div className="calc-cell text-right">{fmtAUD(CC)}</div></Field>
-      <Field label="Qty (Q)" editable={canEdit}><CellInput disabled={!canEdit} type="number" value={item.quantity} onCommit={(v) => onCommit({ quantity: parseFloat(v) || 0 })} align="right" /></Field>
+      <Field label="Qty (Q)" editable={canEdit}>{cell('quantity', 'number', 'right')}</Field>
       <Field label="Total CC (TCC = CC × Q)"><div className="calc-cell text-right font-semibold">{fmtAUD(TCC)}</div></Field>
 
-      <Field label="Install hrs (Ins)" editable={canEdit}><CellInput disabled={!canEdit} type="number" value={item.install_hrs} onCommit={(v) => onCommit({ install_hrs: parseFloat(v) || 0 })} align="right" /></Field>
-      <Field label="Wiring hrs (Wr)" editable={canEdit}><CellInput disabled={!canEdit} type="number" value={item.wiring_hrs} onCommit={(v) => onCommit({ wiring_hrs: parseFloat(v) || 0 })} align="right" /></Field>
+      <Field label="Install hrs (Ins)" editable={canEdit}>{cell('install_hrs', 'number', 'right')}</Field>
+      <Field label="Wiring hrs (Wr)" editable={canEdit}>{cell('wiring_hrs', 'number', 'right')}</Field>
       <Field label="Total Install (TI = Ins+Wr)"><div className="calc-cell text-right">{fmtNum(TI, 2)} hr</div></Field>
       <Field label={`Labour Cost (LC = TI × $${item.effective_labour_rate}/hr)`}><div className="calc-cell text-right">{fmtAUD(LC)}</div></Field>
       <Field label="Selling Price (SP = TCC+LC)"><div className="calc-cell text-right font-bold text-slate-900">{fmtAUD(SP)}</div></Field>
       <div className="col-span-full border-t border-slate-200 pt-3 mt-1 grid grid-cols-3 gap-3">
         <Field label="Override Freight %" editable={canEdit}>
-          <CellInput disabled={!canEdit} type="number" value={item.freight_pct_override ?? ''} onCommit={(v) => onCommit({ freight_pct_override: v === '' ? null : parseFloat(v) })} align="right" />
+          {cell('freight_pct_override', 'number', 'right')}
         </Field>
         <Field label="Override Margin %" editable={canEdit}>
-          <CellInput disabled={!canEdit} type="number" value={item.margin_pct_override ?? ''} onCommit={(v) => onCommit({ margin_pct_override: v === '' ? null : parseFloat(v) })} align="right" />
+          {cell('margin_pct_override', 'number', 'right')}
         </Field>
         <Field label="Override Labour $/hr" editable={canEdit}>
-          <CellInput disabled={!canEdit} type="number" value={item.labour_rate_override ?? ''} onCommit={(v) => onCommit({ labour_rate_override: v === '' ? null : parseFloat(v) })} align="right" />
+          {cell('labour_rate_override', 'number', 'right')}
         </Field>
       </div>
     </div>

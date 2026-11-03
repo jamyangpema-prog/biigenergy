@@ -9,6 +9,7 @@ import { LibraryComponentPanel, ComponentForm } from '@/components/LibraryCompon
 import { imageUrl } from '@/components/ComponentImage';
 import { toast } from 'sonner';
 import { Search, ArrowUpDown, Boxes, ImageOff, Plus } from 'lucide-react';
+import { DownloadMenu } from '@/components/DownloadMenu';
 
 const COLS = [['category', 'Category', false], ['description', 'Component', false], ['brand', 'Brand', false], ['part_no', 'Part No', false],
   ['supplier', 'Supplier', false], ['uom', 'Unit', false], ['rate', 'Rate / Unit', true], ['install_hrs', 'Install hrs', true],
@@ -60,7 +61,10 @@ export default function ComponentLibrary() {
           <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Component Library</h1>
           <p className="text-sm text-slate-500">Master list of components, priced per unit. Editing here updates every project line linked to the component; editing a line in a project's Costing doesn't change the library.</p>
         </div>
-        {canEdit && <Button onClick={() => setCreating(true)} className="bg-slate-900 hover:bg-slate-800 text-white" data-testid="lib-new-btn"><Plus className="h-4 w-4 mr-1" />New component</Button>}
+        <div className="flex gap-2">
+          <DownloadMenu url="/library/export" filename="Component_Library" testid="library-download" />
+          {canEdit && <Button onClick={() => setCreating(true)} className="bg-slate-900 hover:bg-slate-800 text-white" data-testid="lib-new-btn"><Plus className="h-4 w-4 mr-1" />New component</Button>}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2" data-testid="lib-categories">

@@ -3,6 +3,7 @@ import { api, fmtAUD, fmtNum } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { imageUrl } from '@/components/ComponentImage';
+import { fmtDims, fmtThk } from '@/components/LibraryComponentPanel';
 import { toast } from 'sonner';
 import { Package, Wrench, Receipt, FolderKanban, Pencil, Save, X, ImageOff, Library } from 'lucide-react';
 
@@ -97,6 +98,8 @@ export function LineDetails({ itemId, onClose, onSaved }) {
                 <Row label="Part number" value={it.part_no || '—'} />
                 <Row label="Supplier" value={it.supplier || '—'} />
                 <Row label="Unit" value={it.uom || 'ea'} />
+                <Row label="Dimensions (L × W × H)" value={<span data-testid="details-dims">{fmtDims(lib)}</span>} />
+                <Row label="Thickness" value={<span data-testid="details-thickness">{fmtThk(lib)}</span>} />
                 <Row label="Rate (1 unit)" value={fmtAUD(it.rate)} strong />
                 <Row label={`Freight (${(it.effective_freight_pct * 100).toFixed(1)}%)`} value={fmtAUD(it.freight)} />
                 <Row label={`Margin (${(it.effective_margin_pct * 100).toFixed(1)}%)`} value={fmtAUD(it.margin)} />

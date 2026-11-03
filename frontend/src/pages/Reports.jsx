@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { LineDetails } from '@/components/LineDetails';
 import { ProjectPicker } from '@/components/ProjectPicker';
 import { useSearchParams } from 'react-router-dom';
+import { DownloadMenu } from '@/components/DownloadMenu';
 
 export default function Reports() {
   const { current, projects } = useProjects();
@@ -43,10 +44,13 @@ export default function Reports() {
 
   return (
     <div className="space-y-5" data-testid="reports-page">
-      <div>
-        <ProjectPicker />
-        <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mt-3">Reports</h1>
-        <p className="text-sm text-slate-500">Analytical breakdowns for {current.name}, with project comparison. Click any component for full details.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <ProjectPicker />
+          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mt-3">Reports</h1>
+          <p className="text-sm text-slate-500">Analytical breakdowns for {current.name}, with project comparison. Click any component for full details.</p>
+        </div>
+        <DownloadMenu url={`/projects/${current.id}/export/report?tab=${tab}`} filename={tab === 'compare' ? 'Project_Comparison_report' : `${current.name}_${tab}_report`} testid="reports-download" />
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })} className="w-full">
