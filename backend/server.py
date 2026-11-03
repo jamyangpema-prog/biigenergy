@@ -290,6 +290,9 @@ async def update_item(iid: str, it: EquipmentItem, user: dict = Depends(require_
     if not existing:
         raise HTTPException(404, "Item not found")
     doc = it.model_dump()
+    for k in ('component_id', 'image_path'):
+        if k not in it.model_fields_set:
+            doc[k] = existing.get(k)
     doc['id'] = iid
     doc['project_id'] = existing['project_id']
     doc['updated_at'] = datetime.now(timezone.utc).isoformat()
@@ -317,8 +320,14 @@ SYNC_FIELDS = ('description', 'brand', 'part_no', 'supplier', 'uom', 'rate', 'im
 
 async def create_component_from_item(doc: dict) -> str:
     desc = (doc.get('description') or '').strip() or 'Untitled component'
-    comp = Component(description=desc, brand=doc.get('brand') or '', part_no=(doc.get('part_no') or '').strip(),
-                     supplier=doc.get('supplier') or '', uom=doc.get('uom') or 'ea', rate=float(doc.get('rate') or 0),
+    part = (doc.get('part_no') or '').strip()
+    rate = float(doc.get('rate') or 0)
+    match = {'part_no': {'$regex': f'^\\s*{re.escape(part)}\\s*$', '$options': 'i'}} if part else {'description': desc}
+    for ex in await db.components.find(match, {'_id': 0}).to_list(500):
+        if abs(float(ex.get('rate') or 0) - rate) < 0.0001 and (ex.get('uom') or 'ea') == (doc.get('uom') or 'ea'):
+            return ex['id']
+    comp = Component(description=desc, brand=doc.get('brand') or '', part_no=part,
+                     supplier=doc.get('supplier') or '', uom=doc.get('uom') or 'ea', rate=rate,
                      install_hrs=float(doc.get('install_hrs') or 0), wiring_hrs=float(doc.get('wiring_hrs') or 0),
                      image_path=doc.get('image_path'), category=categorise(desc))
     await db.components.insert_one(comp.model_dump())
@@ -388,6 +397,8 @@ async def delete_component(cid: str, user: dict = Depends(require_role('admin', 
     return {'ok': True}
 
 async def migrate_components():
+    if await db.meta.find_one({'key': 'components_migrated'}):
+        return
     first = await db.components.count_documents({}) == 0
     orphans = await db.items.find({'component_id': None}, {'_id': 0}).sort('updated_at', 1).to_list(50000)
     groups = {}
@@ -411,6 +422,7 @@ async def migrate_components():
                                                      rate=0, category=categorise(name)).model_dump())
     if groups:
         logger.info(f"Linked {len(orphans)} project lines to {len(groups)} library components")
+    await db.meta.insert_one({'key': 'components_migrated', 'at': datetime.now(timezone.utc).isoformat()})
 
 
 CATEGORY_RULES = [

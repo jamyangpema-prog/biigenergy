@@ -17,6 +17,8 @@
 - Project selector removed from top bar. New **Projects** tab (`/app/projects`): cards with client, items, component/selling totals; New, Edit (name/client/description), Duplicate, Delete (admin); Rates/Quote/Settings buttons open that project. Project pages (Component Rates, Quotation, Reports, Costing Settings) have a small in-page project picker + "Manage" link.
 - Dashboard is clickable: KPI cards link to Projects / Component Library / Reports tabs (`?tab=labour|component|compare`), chart bars and new Projects table open that project's Component Rates, pie slices open the matching report.
 - Owner admin account jamyang.pema@gmail.com added.
+- Component Library is now a master `components` collection (per unit, Unit column, Category chips/editable category, New/Edit/Remove, picture on component). Project lines link via `component_id`. Library edit → syncs description/brand/part no/supplier/unit/rate/picture to linked lines; line edit in Costing → that line only. Migration (one-off, marker `meta.components_migrated`): each distinct (part, rate) → own entry; " + " names split (5 new $0 parts). New lines/imports reuse an identical library entry or create one. Backup of pre-migration items in `items_backup_20261103`.
+- "Component Rates" renamed **Costing**; Parts Catalogue removed (public + in-app); sticky table headers (`.table-scroll`).
 - Nexar connected (NEXAR_CLIENT_ID / NEXAR_CLIENT_SECRET set); first run matched 10/10 part numbers, 7 with AUD offers. Supplier Prices shows "Your supplier" offer (matched by first word of component supplier, e.g. RS → RS APAC), best live price, per-offer "Use this price".
 - Pending: Claude AI integration (user hasn't chosen purpose/model yet).
 

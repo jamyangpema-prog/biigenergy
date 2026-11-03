@@ -50,7 +50,7 @@ function PriceRow({ r, canEdit, onApplied }) {
   const key = (r.supplier || '').trim().split(/\s+/)[0]?.toLowerCase();
   const mine = key ? (f?.offers || []).find((o) => o.distributor.toLowerCase().startsWith(key)) : null;
   const apply = async (price) => {
-    if (!window.confirm(`Set the library rate for ${r.part_no} to ${fmtAUD(price)}? It updates every project line linked to it.`)) return;
+    if (!window.confirm(`Set the library rate for ${r.part_no} to ${fmtAUD(price)}?${r.entries > 1 ? ` This merges its ${r.entries} library entries (different rates) into one rate.` : ''} It updates every project line linked to it, including lines whose rate was edited by hand.`)) return;
     setBusy(true);
     try { const { data } = await api.post('/feeds/apply', { part_no: r.part_no, price }); toast.success(`Rate updated on ${data.updated} line${data.updated === 1 ? '' : 's'}`); onApplied(); }
     catch (e) { toast.error(e?.response?.data?.detail || 'Could not apply price'); } finally { setBusy(false); }

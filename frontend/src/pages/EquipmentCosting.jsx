@@ -214,8 +214,8 @@ export default function EquipmentCosting() {
             {items.length > 0 && (
               <tfoot>
                 <tr className="bg-slate-100 border-t-2 border-slate-300">
-                  <td /> <td /> <td className="px-3 py-3 text-xs uppercase tracking-wider text-slate-600 font-semibold">Totals</td>
-                  <td /> <td /> <td />
+                  <td /><td /><td className="px-3 py-3 text-xs uppercase tracking-wider text-slate-600 font-semibold">Totals</td>
+                  <td /><td /><td />
                   <td className="px-3 py-3 fin text-right">{fmtNum(totals.qty, 0)}</td>
                   <td />
                   <td className="px-3 py-3 fin text-right font-bold text-slate-900">{fmtAUD(totals.sp)}</td>

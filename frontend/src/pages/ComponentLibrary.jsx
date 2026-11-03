@@ -85,7 +85,7 @@ export default function ComponentLibrary() {
             <thead>
               <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 {COLS.map(([k, l, num]) => (
-                  <th key={k} className={`px-3 py-3 ${num ? 'text-right' : 'text-left'}`}>
+                  <th key={k} className={`px-3 py-3 whitespace-nowrap ${num ? 'text-right' : 'text-left'}`}>
                     <button onClick={() => toggle(k)} className="inline-flex items-center gap-1 hover:text-slate-900" data-testid={`lib-sort-${k}`}>{l}<ArrowUpDown className="h-3 w-3" /></button>
                   </th>
                 ))}
@@ -109,7 +109,7 @@ export default function ComponentLibrary() {
                   <td className="px-3 py-2 fin text-slate-700">{r.part_no || '—'}</td>
                   <td className="px-3 py-2 text-slate-700">{r.supplier || '—'}</td>
                   <td className="px-3 py-2 text-slate-700" data-testid={`lib-unit-${r.id}`}>{r.uom || 'ea'}</td>
-                  <td className="px-3 py-2 fin text-right font-semibold text-slate-900">{r.rate ? fmtAUD(r.rate) : <span className="text-amber-700 font-normal">Rate needed</span>}</td>
+                  <td className="px-3 py-2 fin text-right font-semibold text-slate-900 whitespace-nowrap">{r.rate ? fmtAUD(r.rate) : <span className="text-amber-700 font-normal">Rate needed</span>}</td>
                   <td className="px-3 py-2 fin text-right">{fmtNum(r.install_hrs, 2)}</td>
                   <td className="px-3 py-2 fin text-right">{fmtNum(r.wiring_hrs, 2)}</td>
                   <td className="px-3 py-2 text-right text-slate-600 whitespace-nowrap">{r.lines ? `${r.lines} line${r.lines === 1 ? '' : 's'} · ${r.projects.length} project${r.projects.length === 1 ? '' : 's'}` : 'Not used'}</td>

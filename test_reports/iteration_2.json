@@ -1,0 +1,44 @@
+{
+  "summary": "Tested the Component Library refactor end to end: backend with pytest (13 tests) and UI with Playwright. Only TEST_ data was used and all of it was removed. A hash snapshot of the real projects, items and components taken before and after testing is identical (4 projects, 149 items, 35 components; items_backup_20261103 not touched). All requested features work: Costing nav replaces Component Rates; Parts Catalogue is gone (/parts-catalogue, /app/parts-catalogue and /component-viewer redirect to /); the library has 35 entries, the 10 requested columns, a Unit column, 'Rate needed' for rate 0, category chips, search, and no ' + ' names. A library edit updates all linked lines (toast: 'Library updated and 2 project lines'). A line edit (sheet or inline rate/qty) changes only that line, and the library rate is unchanged. Also verified: Add item creates a library component, Add from library links component_id, new/delete component works, and an image upload shows on the line details sheet (read-only) and can be removed. Supplier Prices renders 11 part-number groups; Apply was not clicked. Sticky headers use position:sticky and stay pinned at offset 0 when scrolled on Costing, Library, Quotation and all Reports tabs. On Dashboard, Users, Supplier Prices and Project Comparison the table is too short to scroll, but the CSS is present. NOTE: the expected totals in the request ($37,239.51 / $73,680.47) do not match the DB. DB-1 & 2 is $37,761.72 and SMSD is $75,057.03, the same as the items_backup_20261103 values. The difference comes from the A9MEM3250 meter rate being bulk-set to 841.8654 on 40 lines at 2026-11-03T02:59:04, before the backup and before this test. This refactor did not change the totals.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "DELETE /api/components/{id} + startup migrate_components", "issue": "Delete sets component_id=None on linked items. On every backend restart, migrate_components treats those items as orphans and creates library components again, so a removed component that is used on lines comes back after a restart. Options: track unlinked items with a flag, or only run the orphan migration once (e.g. a migration marker in the DB)."},
+      {"endpoint": "POST /api/projects/{pid}/import/excel, POST /api/projects/{pid}/items", "issue": "Every imported row, and every manually added item without component_id, creates a new library component. There is no check for an existing component with the same part_no/description and rate, so the library will fill up with duplicates over time."},
+      {"endpoint": "PUT /api/items/{id}", "issue": "The full-replace model means a client that leaves out component_id/image_path unlinks the line (it is set to None) and the next restart creates an orphan component for it. The current frontend always sends the whole item, so it is not affected today. Preserve existing['component_id'] when the field is not in the body."},
+      {"endpoint": "POST /api/feeds/apply", "issue": "Applying a price sets the same rate on every component with that part_no, merging the separate rate entries (e.g. A9F44332 $60.06/$67.00) and overwriting per-line rates that were edited on purpose. This is probably intended, but the user should be warned in the UI. Not executed, per instructions."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EquipmentCosting tfoot", "issue": "FIXED by testing agent: spaces between <td /> in the totals row caused a React 'whitespace text nodes cannot be a child of <tr>' console error.", "selector": "[data-testid='items-table'] tfoot", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Component Library table", "issues": ["'Rate needed' wraps onto 2 lines in the Rate / Unit column, and 'Install hrs'/'Wiring hrs' headers also wrap. Add whitespace-nowrap.", "Entries that share a description but have different rates (e.g. two 'SCHNEIDER 10kA 3P 32A ACTi9 MCB', two '100mm X 100mm PVC SLOTTED DUCT') can only be told apart by rate. Consider a subtle 'variant' hint.", "Two near-duplicate entries, WESTERN POWER \"T\" TYPE CTs with straight vs curly quotes, exist as separate components (data issue from the source)."]},
+      {"screen": "Costing Add item dialog", "issues": ["The Install hr / Wiring hr inputs have no data-testid."]},
+      {"screen": "Line details sheet", "issues": ["The success toast overlaps the sheet title area on desktop."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_component_library.py", "/app/backend/tests/snapshot_real_data.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Stop migrate_components from re-creating deleted-but-used components on restart",
+    "Dedupe component creation on Excel import and manual Add item (reuse an existing component with the same part_no/description and rate)",
+    "Preserve component_id in PUT /items when it is missing from the body",
+    "Minor: whitespace-nowrap on 'Rate needed' and the library hours headers; data-testid on the Add item hours inputs",
+    "Update the expected regression totals: DB-1 & 2 = $37,761.72, SMSD = $75,057.03 (matches items_backup_20261103)"
+  ],
+  "critical_code_review_comments": [
+    "server.py is 1090 lines. Split it into routers (auth, projects/items, components/library, feeds, export).",
+    "component_usage() loads all projects and items on every /library, /components/{id} and /items/{id}/details call. That is fine at 149 lines but will be slow at scale. Use an aggregate, or index items.component_id.",
+    "delete_component has no 404 and returns ok for unknown ids.",
+    "The migrate_components split logic runs only when the components collection is empty. It is safe now, but re-running against a fresh DB copy could create the split entries again."
+  ],
+  "updated_files": ["/app/frontend/src/pages/EquipmentCosting.jsx", "/app/backend/tests/test_component_library.py", "/app/backend/tests/snapshot_real_data.py"],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "None kept. Created and then deleted: TEST_LibProject and TEST_UI_Project, with components TEST_Widget MCB, TEST_New Busbar, TEST_UI Surge Arrester and TEST_UI New Duct. Verified 0 TEST_ projects, items and components remain.",
+  "test_credentials": "admin@biigenergy.com / admin123 (from /app/memory/test_credentials.md)",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Real customer data: run 'python /app/backend/tests/snapshot_real_data.py /tmp/before.json' before and after tests and diff the two files to prove nothing changed. test_component_library.py builds its own TEST_ project and components and cleans them up. Current real totals: DB-1 & 2 $37,761.72, SMSD $75,057.03, RTO123 $114,171.24, Smart BEMS $4,308.62. In a new browser session, set localStorage be_project to the TEST project id, or Costing opens the real DB-1 & 2 project. Never accept window.confirm dialogs globally: use page.once only right before the intended click."
+}
