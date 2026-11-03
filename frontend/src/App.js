@@ -38,6 +38,7 @@ function App() {
           <Route path="/" element={<Marketing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/component-viewer" element={<ComponentViewer />} />
+          <Route path="/parts-catalogue" element={<ComponentViewer />} />
           <Route
             path="/app"
             element={<Protected><ProjectProvider><Shell /></ProjectProvider></Protected>}
@@ -47,7 +48,8 @@ function App() {
             <Route path="settings" element={<Settings />} />
             <Route path="quotation" element={<Quotation />} />
             <Route path="reports" element={<Reports />} />
-            <Route path="component-viewer" element={<ComponentViewer inApp />} />
+            <Route path="component-viewer" element={<Navigate to="/app/parts-catalogue" replace />} />
+            <Route path="parts-catalogue" element={<ComponentViewer inApp />} />
             <Route path="library" element={<Library />} />
             <Route path="users" element={<AdminOnly><Users /></AdminOnly>} />
           </Route>

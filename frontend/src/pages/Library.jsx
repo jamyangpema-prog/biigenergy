@@ -3,7 +3,8 @@ import { api, fmtAUD, fmtNum } from '@/lib/api';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ComponentDetails } from '@/components/ComponentDetails';
-import { Search, ArrowUpDown, Boxes } from 'lucide-react';
+import { Search, ArrowUpDown, Boxes, ImageOff } from 'lucide-react';
+import { imageUrl } from '@/components/ComponentImage';
 
 const COLS = [
   ['description', 'Component', false],
@@ -84,7 +85,14 @@ export default function Library() {
               )}
               {view.map((r) => (
                 <tr key={r.key} onClick={() => setDetailId(r.item_id)} className="border-t border-slate-200 even:bg-slate-50/50 hover:bg-slate-100 cursor-pointer" data-testid={`lib-row-${r.key}`}>
-                  <td className="px-3 py-2 font-medium text-slate-900">{r.description}</td>
+                  <td className="px-3 py-2 font-medium text-slate-900">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded bg-slate-100 shrink-0 overflow-hidden flex items-center justify-center">
+                        {r.image_path ? <img src={imageUrl(r.image_path)} alt="" className="h-full w-full object-cover" /> : <ImageOff className="h-3.5 w-3.5 text-slate-300" />}
+                      </div>
+                      {r.description}
+                    </div>
+                  </td>
                   <td className="px-3 py-2 text-slate-700">{r.brand || '—'}</td>
                   <td className="px-3 py-2 fin text-slate-700">{r.part_no || '—'}</td>
                   <td className="px-3 py-2 text-slate-700">{r.supplier || '—'}</td>

@@ -19,7 +19,7 @@ const NAV = [
   { to: '/app/library', label: 'Component Library', icon: Boxes },
   { to: '/app/quotation', label: 'Quotation', icon: FileText },
   { to: '/app/reports', label: 'Reports', icon: BarChart3 },
-  { to: '/app/component-viewer', label: 'Component_Viewer', icon: Globe },
+  { to: '/app/parts-catalogue', label: 'Parts Catalogue', icon: Globe },
   { to: '/app/settings', label: 'Costing Settings', icon: Settings },
 ];
 

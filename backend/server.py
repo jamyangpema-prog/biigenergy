@@ -1,6 +1,7 @@
 """BIIG Energy — Equipment Costing & Quotation Management API."""
 from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, UploadFile, File
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
+import requests
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -95,6 +96,7 @@ class EquipmentItem(BaseModel):
     margin_pct_override: Optional[float] = None
     labour_rate_override: Optional[float] = None
     label: Optional[str] = ''  # e.g., "UNIT 23 METER"
+    image_path: Optional[str] = None
     uom: Optional[str] = 'ea'
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
@@ -307,7 +309,10 @@ async def library(user: dict = Depends(current_user)):
             'key': key, 'item_id': c['id'], 'description': c.get('description', ''),
             'brand': c.get('brand') or '', 'part_no': part, 'supplier': c.get('supplier') or '',
             'quantity': 0, 'total_component_cost': 0, 'labour_cost': 0, 'selling_price': 0,
-            'min_rate': c['rate'], 'max_rate': c['rate'], 'min_unit_sp': None, 'max_unit_sp': None, 'projects': {}})
+            'min_rate': c['rate'], 'max_rate': c['rate'], 'min_unit_sp': None, 'max_unit_sp': None, 'projects': {},
+            'rate': c['rate'], 'install_hrs': c['install_hrs'], 'wiring_hrs': c['wiring_hrs'], 'uom': c.get('uom') or 'ea',
+            'image_path': c.get('image_path')})
+        g['image_path'] = g['image_path'] or c.get('image_path')
         if c['quantity'] and c['rate']:
             unit_sp = c['selling_price'] / c['quantity']
             g['min_unit_sp'] = unit_sp if g['min_unit_sp'] is None else min(g['min_unit_sp'], unit_sp)
@@ -355,8 +360,81 @@ async def public_components():
     r2 = lambda v: round(v, 2) if v is not None else None
     return [{'description': r['description'], 'brand': r['brand'], 'part_no': r['part_no'],
              'supplier': r['supplier'], 'quantity': r['quantity'], 'category': categorise(r['description']),
+             'image_path': r['image_path'],
              'min_price': r2(r['min_unit_sp']), 'max_price': r2(r['max_unit_sp'])}
             for r in sorted(rows, key=lambda x: x['description'])]
+
+STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
+STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
+APP_NAME = "biig-energy"
+IMAGE_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif"}
+_storage_key = None
+
+def init_storage(force: bool = False):
+    global _storage_key
+    if _storage_key and not force:
+        return _storage_key
+    resp = requests.post(f"{STORAGE_URL}/init", json={"emergent_key": os.environ.get("EMERGENT_LLM_KEY")}, timeout=30)
+    resp.raise_for_status()
+    _storage_key = resp.json()["storage_key"]
+    return _storage_key
+
+def put_object(path: str, data: bytes, content_type: str) -> dict:
+    resp = requests.put(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": init_storage(), "Content-Type": content_type}, data=data, timeout=120)
+    if resp.status_code == 404:
+        resp = requests.put(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": init_storage(force=True), "Content-Type": content_type}, data=data, timeout=120)
+    resp.raise_for_status()
+    return resp.json()
+
+def get_object(path: str):
+    resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": init_storage()}, timeout=60)
+    if resp.status_code == 404:
+        resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": init_storage(force=True)}, timeout=60)
+    resp.raise_for_status()
+    return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
+
+async def _matching_ids(src: dict):
+    part = (src.get('part_no') or '').strip()
+    match = {'part_no': part} if part else {'description': src.get('description', '')}
+    return [d['id'] for d in await db.items.find(match, {'id': 1, '_id': 0}).to_list(50000)]
+
+@api.post("/items/{iid}/image")
+async def upload_item_image(iid: str, file: UploadFile = File(...), user: dict = Depends(require_role('admin', 'estimator'))):
+    src = await db.items.find_one({'id': iid}, {'_id': 0})
+    if not src:
+        raise HTTPException(404, "Item not found")
+    ext = IMAGE_TYPES.get(file.content_type or '')
+    if not ext:
+        raise HTTPException(400, "Please upload a JPG, PNG, WEBP or GIF image")
+    data = await file.read()
+    if len(data) > 5 * 1024 * 1024:
+        raise HTTPException(400, "Image must be 5 MB or smaller")
+    result = put_object(f"{APP_NAME}/components/{uuid.uuid4()}.{ext}", data, file.content_type)
+    await db.files.insert_one({'id': str(uuid.uuid4()), 'storage_path': result['path'], 'original_filename': file.filename,
+                               'content_type': file.content_type, 'size': result.get('size', len(data)), 'is_deleted': False,
+                               'uploaded_by': user['id'], 'created_at': datetime.now(timezone.utc).isoformat()})
+    ids = await _matching_ids(src)
+    await db.items.update_many({'id': {'$in': ids}}, {'$set': {'image_path': result['path']}})
+    return {'image_path': result['path'], 'updated': len(ids)}
+
+@api.delete("/items/{iid}/image")
+async def remove_item_image(iid: str, user: dict = Depends(require_role('admin', 'estimator'))):
+    src = await db.items.find_one({'id': iid}, {'_id': 0})
+    if not src:
+        raise HTTPException(404, "Item not found")
+    ids = await _matching_ids(src)
+    await db.items.update_many({'id': {'$in': ids}}, {'$set': {'image_path': None}})
+    if src.get('image_path') and not await db.items.find_one({'image_path': src['image_path']}):
+        await db.files.update_one({'storage_path': src['image_path']}, {'$set': {'is_deleted': True}})
+    return {'ok': True}
+
+@api.get("/images/{path:path}")
+async def serve_image(path: str):
+    rec = await db.files.find_one({'storage_path': path, 'is_deleted': False}, {'_id': 0})
+    if not rec:
+        raise HTTPException(404, "Image not found")
+    data, ctype = get_object(path)
+    return Response(content=data, media_type=rec.get('content_type') or ctype, headers={'Cache-Control': 'public, max-age=86400'})
 
 class ComponentUpdate(BaseModel):
     description: str
@@ -742,6 +820,11 @@ SEED_SMSD = [
 
 @app.on_event("startup")
 async def seed():
+    try:
+        init_storage()
+        logger.info("Storage initialized")
+    except Exception as e:
+        logger.error(f"Storage init failed: {e}")
     # Seed users
     if await db.users.count_documents({}) == 0:
         logger.info("Seeding users…")

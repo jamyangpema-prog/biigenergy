@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Plus, Copy, Trash2, ChevronDown, ChevronRight, Search, Download, Upload, FilePlus2, FileSpreadsheet, ArrowUpDown, Hash, Eye } from 'lucide-react';
 import { ComponentDetails } from '@/components/ComponentDetails';
+import { AddFromLibrary } from '@/components/AddFromLibrary';
 
 const BLANK = { description: '', brand: '', part_no: '', supplier: '', quantity: 1, rate: 0, install_hrs: 0, wiring_hrs: 0 };
 
@@ -22,6 +23,7 @@ export default function EquipmentCosting() {
   const [items, setItems] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [detailId, setDetailId] = useState(null);
+  const [showLib, setShowLib] = useState(false);
   const [expanded, setExpanded] = useState(new Set());
   const [q, setQ] = useState('');
   const [sort, setSort] = useState({ key: 'item_no', dir: 'asc' });
@@ -133,6 +135,7 @@ export default function EquipmentCosting() {
         <div className="flex flex-wrap gap-2">
           <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => e.target.files?.[0] && importXL(e.target.files[0])} />
           {canEdit && <Button onClick={() => setShowNew(true)} className="bg-slate-900 hover:bg-slate-800 text-white" data-testid="btn-add-item"><Plus className="h-4 w-4 mr-1" /> Add item</Button>}
+          {canEdit && <Button variant="outline" onClick={() => setShowLib(true)} data-testid="btn-add-from-library"><Search className="h-4 w-4 mr-1" /> Add from library</Button>}
           {canEdit && <Button variant="outline" onClick={() => fileRef.current?.click()} data-testid="btn-import"><Upload className="h-4 w-4 mr-1" /> Import</Button>}
           <Button variant="outline" onClick={exportXL} data-testid="btn-export-xl"><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
           <Button variant="outline" onClick={exportPDF} data-testid="btn-export-pdf"><Download className="h-4 w-4 mr-1" /> PDF</Button>
@@ -182,7 +185,7 @@ export default function EquipmentCosting() {
               )}
               {loaded && filtered.length === 0 && (
                 <tr><td colSpan={10} className="p-12 text-center text-slate-500">
-                  No items. {canEdit && <button onClick={() => setShowNew(true)} className="text-blue-600 hover:underline">Add one</button>}
+                  No items. {canEdit && <><button onClick={() => setShowNew(true)} className="text-blue-600 hover:underline">Add one</button> or <button onClick={() => setShowLib(true)} className="text-blue-600 hover:underline" data-testid="empty-add-from-library">pick from the library</button></>}
                 </td></tr>
               )}
               {filtered.map((it) => (
@@ -241,6 +244,7 @@ export default function EquipmentCosting() {
       </Card>
 
       <ComponentDetails itemId={detailId} onClose={() => setDetailId(null)} onSaved={loadItems} />
+      <AddFromLibrary open={showLib} onOpenChange={setShowLib} projectId={current.id} onAdded={loadItems} />
 
       <Dialog open={showNew} onOpenChange={setShowNew}>
         <DialogContent>

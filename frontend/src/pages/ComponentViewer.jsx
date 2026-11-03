@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { API, fmtAUD, fmtNum } from '@/lib/api';
-import { Search, Phone, Mail, MapPin, ArrowUpDown, Boxes } from 'lucide-react';
+import { Search, Phone, Mail, MapPin, ArrowUpDown, Boxes, ImageOff } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { imageUrl } from '@/components/ComponentImage';
 
 const LOGO = 'https://customer-assets-jt897jd0.emergentagent.net/job_equipquote--13ttmu53/artifacts/57e4a1b4741c1c06_LOGO%20BE.png';
 const SITE = 'https://biigenergy.com.au';
@@ -57,12 +59,49 @@ function Footer() {
   );
 }
 
+function PartDialog({ part, price, onClose }) {
+  const rows = part ? [['Brand', part.brand], ['Part number', part.part_no], ['Supplier', part.supplier], ['Category', part.category], ['Quantity', fmtNum(part.quantity, 0)]] : [];
+  return (
+    <Dialog open={!!part} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-2xl p-0 overflow-hidden" data-testid="cv-dialog">
+        {part && (
+          <div className="grid sm:grid-cols-2">
+            <div className="bg-[#F1F1F1] flex items-center justify-center min-h-[240px]">
+              {part.image_path ? <img src={imageUrl(part.image_path)} alt={part.description} className="w-full h-full object-contain max-h-80" data-testid="cv-dialog-img" />
+                : <div className="text-slate-400 text-sm flex flex-col items-center gap-1"><ImageOff className="h-10 w-10" />No picture available</div>}
+            </div>
+            <div className="p-6 flex flex-col">
+              <DialogHeader className="text-left space-y-1">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: RED }}>{part.category}</div>
+                <DialogTitle className="text-lg leading-snug text-[#1F2937]" data-testid="cv-dialog-title">{part.description}</DialogTitle>
+                <DialogDescription className="sr-only">Component details</DialogDescription>
+              </DialogHeader>
+              <div className="mt-4 divide-y divide-slate-100 text-sm">
+                {rows.map(([l, v]) => (
+                  <div key={l} className="flex justify-between py-2"><span className="text-slate-500">{l}</span><span className="font-medium text-[#1F2937]">{v || '—'}</span></div>
+                ))}
+              </div>
+              <div className="mt-4 rounded-md p-4 text-white" style={{ background: DARK }}>
+                <div className="text-xs uppercase tracking-wider text-slate-300">Current price (per unit, ex GST)</div>
+                <div className="text-2xl font-bold tabular-nums mt-1" style={{ color: RED }} data-testid="cv-dialog-price">{price}</div>
+                <div className="text-[11px] text-slate-400 mt-1">Supplied and installed. Final pricing confirmed on quotation.</div>
+              </div>
+              <a href={`${SITE}/contact-us/`} target="_blank" rel="noreferrer" className="mt-4 text-center text-white text-sm font-semibold uppercase px-5 py-3 rounded-md hover:opacity-90" style={{ background: RED }} data-testid="cv-dialog-quote">Request a Quote</a>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function ComponentViewer({ inApp = false }) {
   const [params] = useSearchParams();
   const embed = inApp || params.get('embed') === '1';
   const [rows, setRows] = useState(null);
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('All');
+  const [sel, setSel] = useState(null);
   const [sort, setSort] = useState({ key: 'description', dir: 'asc' });
 
   useEffect(() => { axios.get(`${API}/public/components`).then((r) => setRows(r.data)).catch(() => setRows([])); }, []);
@@ -92,10 +131,10 @@ export default function ComponentViewer({ inApp = false }) {
       {inApp && (
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Component_Viewer</h1>
+            <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Parts Catalogue</h1>
             <p className="text-sm text-slate-500">Exactly what visitors see on the public page.</p>
           </div>
-          <a href="/component-viewer" target="_blank" rel="noreferrer" className="text-sm font-medium text-white px-4 py-2 rounded-md hover:opacity-90" style={{ background: RED }} data-testid="cv-open-public">Open public page</a>
+          <a href="/parts-catalogue" target="_blank" rel="noreferrer" className="text-sm font-medium text-white px-4 py-2 rounded-md hover:opacity-90" style={{ background: RED }} data-testid="cv-open-public">Open public page</a>
         </div>
       )}
       {!embed && <Header />}
@@ -103,7 +142,7 @@ export default function ComponentViewer({ inApp = false }) {
         <section style={{ background: DARK }} className="px-6 pt-14 pb-20">
           <div className="max-w-7xl mx-auto">
             <div className="text-[13px] font-semibold uppercase tracking-[0.2em]" style={{ color: RED }}>BiigEnergy</div>
-            <h1 className="text-4xl sm:text-5xl font-bold text-white mt-3">Component_Viewer</h1>
+            <h1 className="text-4xl sm:text-5xl font-bold text-white mt-3">Parts Catalogue</h1>
             <p className="text-slate-300 mt-4 max-w-2xl">Browse the electrical components we specify and supply: descriptions, brands, part numbers, suppliers, quantities and prices. Prices are per unit, supplied and installed, in AUD excluding GST.</p>
           </div>
         </section>
@@ -146,7 +185,7 @@ export default function ComponentViewer({ inApp = false }) {
                     <tr><td colSpan={6} className="p-12 text-center"><Boxes className="h-8 w-8 mx-auto mb-2 text-slate-300" />No components found.</td></tr>
                   )}
                   {view.map((r, i) => (
-                    <tr key={i} className="border-t border-slate-100 even:bg-[#F7F7F7] hover:bg-[#FD0531]/5 transition-colors" data-testid={`cv-row-${i}`}>
+                    <tr key={i} onClick={() => setSel(r)} className="border-t border-slate-100 even:bg-[#F7F7F7] hover:bg-[#FD0531]/5 transition-colors cursor-pointer" data-testid={`cv-row-${i}`}>
                       <td className="px-4 py-3 font-medium text-[#1F2937]">{r.description}</td>
                       <td className="px-4 py-3">{r.brand || '—'}</td>
                       <td className="px-4 py-3 tabular-nums">{r.part_no || '—'}</td>
@@ -167,6 +206,7 @@ export default function ComponentViewer({ inApp = false }) {
           )}
         </div>
       </section>
+      <PartDialog part={sel} price={sel ? price(sel) : ''} onClose={() => setSel(null)} />
       {!embed && <Footer />}
     </div>
   );

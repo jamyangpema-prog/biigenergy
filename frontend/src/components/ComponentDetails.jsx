@@ -4,6 +4,7 @@ import { useProjects } from '@/lib/projects';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Package, Wrench, Receipt, FolderKanban, Pencil, Save, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import { ComponentImage } from '@/components/ComponentImage';
 import { toast } from 'sonner';
 
 const FIELDS = [['description', 'Equipment description', 'text'], ['brand', 'Brand', 'text'], ['part_no', 'Part number', 'text'],
@@ -118,6 +119,8 @@ export function ComponentDetails({ itemId, onClose, onSaved }) {
             {editing ? (
               <EditForm d={d} onCancel={() => setEditing(false)} onSaved={async () => { await load(); setEditing(false); onSaved?.(); }} />
             ) : (<>
+
+            <ComponentImage itemId={it.id} path={it.image_path} canEdit={canEdit} onChanged={async () => { await load(); onSaved?.(); }} />
 
             <Block icon={Package} title="Component">
               <Row label="Brand" value={it.brand || '—'} testid="details-brand" />
