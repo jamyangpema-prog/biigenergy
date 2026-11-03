@@ -40,6 +40,10 @@
 - Costing landing `/app/costing` = start screen (Create new project card + project cards with View/Edit; Edit opens rename dialog then the costing). Editor at `/app/costing/:pid`; Projects/Dashboard/picker link there.
 - Costing table: details pop-up opens only from description text or eye icon; other cells edit inline. Description is edited in the details pop-up.
 - Fixed ProjectProvider stale-closure race on deep links. Tested (iteration_3).
+- Costing: per-row Save / Discard (edits held as drafts; amber row; Enter saves); leave-page warning (`lib/unsaved.js`) on sidebar, back link, picker, logout, browser close.
+- Component Library entries: length_mm, width_mm, height_mm, thickness_mm; shown in library panel and Costing line details pop-up.
+- "Download" dropdown (PDF / Excel Sheet) on Component Library, Costing, Reports (current tab), Quotation. Endpoints: `/api/library/export`, `/api/projects/{pid}/export/{costing|report|quote}?fmt=pdf|xlsx[&tab=]`. Tested (iteration_4).
+- Note: projects DB-1 & 2, SMSD and RTO123 were deleted via the app by an admin session ~05:00 UTC on 2026-11-03 (not by tests). Their 142 item lines remain in `items_backup_20261103`; project records would need re-creating if restore is wanted.
 
 ## Backlog
 - P0: connect contact form to email delivery (Resend)

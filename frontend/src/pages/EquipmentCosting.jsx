@@ -109,7 +109,7 @@ export default function EquipmentCosting() {
     } catch { toast.error('Add failed'); }
   };
   const dup = async (id) => { try { await api.post(`/items/${id}/duplicate`); loadItems(); toast.success('Duplicated'); } catch { toast.error('Failed'); } };
-  const del = async (id) => { if (!window.confirm('Delete item?')) return; await api.delete(`/items/${id}`); loadItems(); toast.success('Deleted'); };
+  const del = async (id) => { if (!window.confirm('Delete item?')) return; await api.delete(`/items/${id}`); discard(id); loadItems(); toast.success('Deleted'); };
   const renumber = async () => { await api.post(`/projects/${current.id}/renumber`); loadItems(); toast.success('Renumbered'); };
 
   const importXL = async (file) => {

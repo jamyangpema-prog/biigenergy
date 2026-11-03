@@ -622,7 +622,7 @@ async def export_excel(pid: str, user: dict = Depends(current_user)):
     items = await db.items.find({'project_id': pid}, {'_id': 0}).sort('item_no', 1).to_list(5000)
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = (p['name'] or 'Costing')[:30]
+    ws.title = re.sub(r'[\\/?*\[\]:]', '-', p['name'] or 'Costing')[:30] or 'Costing'
     headers = ['ITEM','DESCRIPTION','Brand','Part No','Supplier','Qty (Q)','Rate (R)','Freight (F)',
                'Margin (M)','Comp Cost (CC)','Total CC','Install (Ins)','Wiring (Wr)',
                'Total Install (TI)','Labour Cost (LC)','Selling Price (SP)']
@@ -771,7 +771,7 @@ def _dims(c: dict) -> str:
 def table_file(name: str, title: str, subtitle: str, headers: list, rows: list, fmt: str, totals: Optional[list] = None, widths: Optional[dict] = None):
     safe = re.sub(r'[^A-Za-z0-9_-]+', '_', name).strip('_') or 'export'
     if fmt == 'xlsx':
-        wb = openpyxl.Workbook(); ws = wb.active; ws.title = title[:30] or 'Sheet'
+        wb = openpyxl.Workbook(); ws = wb.active; ws.title = re.sub(r'[\\/?*\[\]:]', '-', title)[:30] or 'Sheet'
         ws.cell(1, 1, title).font = Font(bold=True, size=14)
         ws.cell(2, 1, subtitle)
         for col, h in enumerate(headers, 1):
@@ -865,6 +865,7 @@ async def export_report(pid: str, tab: str = 'costing', fmt: str = 'pdf', user: 
     if tab not in REPORT_TITLES:
         raise HTTPException(400, "Unknown report")
     if tab == 'compare':
+        await _project_lines(pid)
         rows = []
         for pr in await db.projects.find({}, {'_id': 0}).to_list(1000):
             _, ls = await _project_lines(pr['id'])

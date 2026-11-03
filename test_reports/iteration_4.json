@@ -1,0 +1,37 @@
+{
+  "summary": "Tested the new Save/Discard per row, the unsaved-changes guard, the Download (PDF / Excel Sheet) menus and component dimensions (backend and frontend). Backend: 30 of 31 pytest cases pass. That covers all export endpoints, both formats and all 5 report tabs, with content-type and file checks; invalid fmt returns 400, invalid tab returns 400, no auth returns 401/403, an unknown project returns 404, the dims round trip and null reset work, and item details return the component dims. One bug: the Excel export returns 500 when the project name contains '/', ':', '?', '*', '[' or ']'. Frontend: everything requested works. Edits do not save immediately, the row turns amber, save-row/discard-row appear, unsaved-count is right for 1 and 2 rows, Discard restores the value, Save persists after reload, and Enter saves. The expanded detail fields share the row draft and the row and detail qty stay in sync. The guard confirm appears for nav-dashboard, costing-back, manage-projects-link and the project-selector. Dismissing keeps you on the page with the edits; accepting navigates and the drafts are cleared. All 4 Download menus show PDF / Excel Sheet and download files. The Library panel edit form has the dims inputs and shows '100 × 50 × 20 mm' and '2.0 mm'. Costing line details show details-dims and details-thickness, and '—' when unset. Regression checks pass: description and eye open the details; other cells don't. One frontend bug: deleting a row that has unsaved edits leaves an orphan draft.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/projects/{pid}/export/costing?fmt=xlsx and /export/quote?fmt=xlsx (also legacy /export/excel)", "issue": "Returns 500 'ValueError: Invalid character / found in sheet title' when the project name contains an openpyxl-forbidden character (/ \\ ? * [ ] :). export_excel sets ws.title=p['name'][:30], and table_file sets ws.title=title[:30], which includes the project name. The report xlsx only works because the prefix is truncated first. Fix: sanitise with re.sub(r'[\\\\/?*\\[\\]:]', '-', ...) before assigning ws.title."},
+      {"endpoint": "GET /api/projects/{pid}/export/report?tab=compare", "issue": "pid is never validated for tab=compare, so any pid returns 200. Cosmetic."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EquipmentCosting del()", "issue": "Deleting a row that has unsaved edits leaves its draft in the drafts state. After that, 'unsaved-count' still says '1 line with unsaved changes' with no amber row visible, and every navigation shows the leave-confirm until the user leaves. Fix: call discard(id) in del() after a successful delete (and/or prune drafts whose id is no longer in items inside loadItems).", "selector": "[data-testid=unsaved-count]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Costing expanded row", "issues": ["cell-quantity-{n} and cell-rate-{n} testids are duplicated when the row is expanded (main row plus detail). This works, but consider a separate detail-* testid.", "Selling price and totals don't preview the draft values until Save. Acceptable, but users may expect a live preview."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_downloads_dims.py", "/app/test_reports/pytest/iteration_4.xml"],
+  "action_items": [
+    "Sanitise xlsx sheet titles (export_excel ws.title and table_file ws.title) so project names with / : ? * [ ] don't cause a 500",
+    "Clear the row draft when an item is deleted (del) and prune stale drafts in loadItems"
+  ],
+  "critical_code_review_comments": [
+    "unsaved.js guard covers sidebar NavLinks, costing-back, ProjectPicker, manage link, logout, and beforeunload for full-page navigations (verified). In-app SPA history back/forward (popstate) is not intercepted. Consider react-router useBlocker if a data router is adopted.",
+    "edit() compares String(it[k]) to the typed value, so typing '1.0' over 1 marks the row dirty. Minor.",
+    "updateItem PUTs the whole merged item (including computed fields). This works, but it would be cleaner to send only the model fields.",
+    "Library panel dims/thickness rows have no data-testid (the LineDetails ones do). Add lp-dims and lp-thickness for consistency."
+  ],
+  "updated_files": ["/app/backend/tests/test_downloads_dims.py"],
+  "success_rate": {"backend": "97% (30/31)", "frontend": "95%"},
+  "seed_data_creation": "Created TEST_Dims/Proj: A, TEST_UI Proj (2 lines plus 1 duplicate), TEST_DimsComp, TEST_UI Dims Comp, TEST_UI Unlinked and TEST_Cable <10mm. All were deleted and verified via the DB. Smart BEMS item 1 qty went 1->4->1 (restored); all 7 Smart BEMS items match the pre-test baseline (item 6 rate is still 90).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The DB now has only 1 project (Smart BEMS 37d87972...); the customer deleted RTO123/SMSD/DB-1&2 before this session (the backend log shows DELETEs from earlier). Use page.wait_for_selector('[data-testid=nav-dashboard]') after login (the URL is /app, not /app/**). For DownloadMenu, wait for the button to be :not([disabled]) before reopening it. For the picker guard test, create a TEST_ project so there's a second option.",
+  "rca of the issue": "Orphan draft: drafts are keyed by item id and only cleared by discard/saveRow/pid change. del() reloads items but never removes drafts[id], so dirtyCount stays >0 and setUnsaved(true) persists. xlsx 500: openpyxl Worksheet.title rejects / \\ ? * [ ] :, and the project name is used unsanitised."
+}
