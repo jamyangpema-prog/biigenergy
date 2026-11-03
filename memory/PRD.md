@@ -9,6 +9,14 @@
 - React: public marketing site at `/`, `/login`, authenticated app at `/app/*`.
 - Formulas: F=R×f%, M=R×m%, CC=R+F+M, TCC=CC×Q, TI=Ins+Wr, LC=TI×rate, SP=TCC+LC.
 
+## Implemented (2026-11-03)
+- Component_Viewer renamed **Parts Catalogue** (public `/parts-catalogue`, old `/component-viewer` still works; in-app `/app/parts-catalogue`); row click opens pop-up with picture, details, current per-unit price, Request a Quote.
+- Add from library: Component Rates → "Add from library" searches all parts and adds to current project with qty (copies brand, part no, supplier, rate, hours, picture).
+- Component pictures via Emergent object storage: upload/change/remove in detail panel; applied to all lines of the same part; shown in Library, detail panel, Parts Catalogue pop-up. `/api/images/{path}` public.
+- Supplier Prices page (`/app/supplier-prices`): Nexar (Octopart) feed, AU/AUD, qty-1 price, stock per distributor; Apply button updates rate on all matching lines (logged in `rate_changes`); daily cron 6:00 Perth (`.emergent/crons.yml` → `/api/cron/supplier-feed`). Waiting for NEXAR_CLIENT_ID / NEXAR_CLIENT_SECRET.
+- Owner admin account jamyang.pema@gmail.com added.
+- Pending: Claude AI integration (user hasn't chosen purpose/model yet).
+
 ## Implemented (2026-11-02)
 - Costing app: 2 seeded projects (DB-1 & 2: 30 items; SMSD: 40 items), inline editing, expandable costing editor, per-item overrides, duplicate/delete/renumber, projects CRUD/duplicate, dashboard KPIs+charts, quote w/ GST, reports (5 tabs), Excel in/out, PDF quote, user management.
 - Marketing site: hero, value strip, services (6), about + principles, testimonials, FAQ, contact form, footer. Navy/white/grey + red accent, IBM Plex Sans/Mono.

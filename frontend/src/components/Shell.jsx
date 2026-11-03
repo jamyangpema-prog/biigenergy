@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { useProjects } from '@/lib/projects';
-import { LayoutDashboard, Table2, Settings, FileText, BarChart3, LogOut, Users, Plus, Boxes, Globe } from 'lucide-react';
+import { LayoutDashboard, Table2, Settings, FileText, BarChart3, LogOut, Users, Plus, Boxes, Globe, TrendingUp } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ const NAV = [
   { to: '/app', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/app/costing', label: 'Component Rates', icon: Table2 },
   { to: '/app/library', label: 'Component Library', icon: Boxes },
+  { to: '/app/supplier-prices', label: 'Supplier Prices', icon: TrendingUp },
   { to: '/app/quotation', label: 'Quotation', icon: FileText },
   { to: '/app/reports', label: 'Reports', icon: BarChart3 },
   { to: '/app/parts-catalogue', label: 'Parts Catalogue', icon: Globe },

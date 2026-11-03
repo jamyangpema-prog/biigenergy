@@ -6,7 +6,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
-import os, io, logging, uuid, jwt, bcrypt
+import os, io, re, asyncio, logging, uuid, jwt, bcrypt
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from typing import List, Optional, Literal
@@ -395,8 +395,14 @@ def get_object(path: str):
 
 async def _matching_ids(src: dict):
     part = (src.get('part_no') or '').strip()
-    match = {'part_no': part} if part else {'description': src.get('description', '')}
+    if part:
+        match = {'part_no': {'$regex': f'^\\s*{re.escape(part)}\\s*$', '$options': 'i'}}
+    else:
+        match = {'description': src.get('description', '')}
     return [d['id'] for d in await db.items.find(match, {'id': 1, '_id': 0}).to_list(50000)]
+
+def _is_image(data: bytes) -> bool:
+    return data[:3] == b'\xff\xd8\xff' or data[:8] == b'\x89PNG\r\n\x1a\n' or data[:6] in (b'GIF87a', b'GIF89a') or (data[:4] == b'RIFF' and data[8:12] == b'WEBP')
 
 @api.post("/items/{iid}/image")
 async def upload_item_image(iid: str, file: UploadFile = File(...), user: dict = Depends(require_role('admin', 'estimator'))):
@@ -409,7 +415,9 @@ async def upload_item_image(iid: str, file: UploadFile = File(...), user: dict =
     data = await file.read()
     if len(data) > 5 * 1024 * 1024:
         raise HTTPException(400, "Image must be 5 MB or smaller")
-    result = put_object(f"{APP_NAME}/components/{uuid.uuid4()}.{ext}", data, file.content_type)
+    if not _is_image(data):
+        raise HTTPException(400, "Please upload a JPG, PNG, WEBP or GIF image")
+    result = await asyncio.to_thread(put_object, f"{APP_NAME}/components/{uuid.uuid4()}.{ext}", data, file.content_type)
     await db.files.insert_one({'id': str(uuid.uuid4()), 'storage_path': result['path'], 'original_filename': file.filename,
                                'content_type': file.content_type, 'size': result.get('size', len(data)), 'is_deleted': False,
                                'uploaded_by': user['id'], 'created_at': datetime.now(timezone.utc).isoformat()})
@@ -433,7 +441,7 @@ async def serve_image(path: str):
     rec = await db.files.find_one({'storage_path': path, 'is_deleted': False}, {'_id': 0})
     if not rec:
         raise HTTPException(404, "Image not found")
-    data, ctype = get_object(path)
+    data, ctype = await asyncio.to_thread(get_object, path)
     return Response(content=data, media_type=rec.get('content_type') or ctype, headers={'Cache-Control': 'public, max-age=86400'})
 
 class ComponentUpdate(BaseModel):
@@ -451,9 +459,7 @@ async def apply_all(iid: str, body: ComponentUpdate, user: dict = Depends(requir
     src = await db.items.find_one({'id': iid}, {'_id': 0})
     if not src:
         raise HTTPException(404, "Item not found")
-    part = (src.get('part_no') or '').strip()
-    match = {'part_no': part} if part else {'description': src.get('description', '')}
-    ids = [d['id'] for d in await db.items.find(match, {'id': 1, '_id': 0}).to_list(50000)]
+    ids = await _matching_ids(src)
     fields = body.model_dump(exclude={'quantities'})
     fields['updated_at'] = datetime.now(timezone.utc).isoformat()
     await db.items.update_many({'id': {'$in': ids}}, {'$set': fields})
@@ -731,6 +737,182 @@ async def restore(data: dict, user: dict = Depends(require_role('admin'))):
 @api.get("/")
 async def root(): return {"service": "BIIG Energy Costing API", "status": "ok"}
 
+# ================= Supplier price feed (Nexar / Octopart) =================
+
+import hmac, time as _time
+import httpx
+from fastapi import BackgroundTasks, Header, Request
+
+NEXAR_TOKEN_URL = "https://identity.nexar.com/connect/token"
+NEXAR_GRAPHQL_URL = "https://api.nexar.com/graphql"
+_nexar_token: dict = {}
+
+NEXAR_QUERY = """
+query BatchParts($queries: [SupPartMatchQuery!]!, $country: String!, $currency: String!) {
+  supMultiMatch(country: $country, currency: $currency, queries: $queries) {
+    hits
+    reference
+    parts {
+      mpn
+      manufacturer { name }
+      sellers(authorizedOnly: true, includeBrokers: false) {
+        company { name }
+        offers { clickUrl inventoryLevel moq prices { quantity price currency convertedPrice convertedCurrency } }
+      }
+    }
+  }
+}
+"""
+
+def nexar_configured() -> bool:
+    return bool(os.environ.get('NEXAR_CLIENT_ID') and os.environ.get('NEXAR_CLIENT_SECRET'))
+
+async def nexar_token(force: bool = False) -> str:
+    if not force and _nexar_token.get('value') and _time.time() < _nexar_token['exp'] - 300:
+        return _nexar_token['value']
+    async with httpx.AsyncClient(timeout=20) as c:
+        r = await c.post(NEXAR_TOKEN_URL, data={'grant_type': 'client_credentials', 'scope': 'supply.domain',
+                                                'client_id': os.environ['NEXAR_CLIENT_ID'],
+                                                'client_secret': os.environ['NEXAR_CLIENT_SECRET']})
+        r.raise_for_status()
+        body = r.json()
+    _nexar_token.update(value=body['access_token'], exp=_time.time() + int(body.get('expires_in', 86400)))
+    return _nexar_token['value']
+
+async def nexar_lookup(mpns: list) -> list:
+    variables = {'queries': [{'mpn': m, 'limit': 1, 'reference': m} for m in mpns], 'country': 'AU', 'currency': 'AUD'}
+    async with httpx.AsyncClient(timeout=60) as c:
+        for attempt in range(2):
+            r = await c.post(NEXAR_GRAPHQL_URL, json={'query': NEXAR_QUERY, 'variables': variables},
+                             headers={'Authorization': f"Bearer {await nexar_token(force=attempt == 1)}"})
+            if r.status_code != 401:
+                break
+        r.raise_for_status()
+        body = r.json()
+    if body.get('errors'):
+        raise RuntimeError(f"Nexar error: {body['errors'][0].get('message', 'unknown')}")
+    return body['data']['supMultiMatch']
+
+def _unit_price(prices: list):
+    aud = [p for p in prices if p.get('convertedPrice') is not None and p.get('convertedCurrency') == 'AUD']
+    if not aud:
+        return None
+    return min(aud, key=lambda p: p.get('quantity') or 0)['convertedPrice']
+
+def summarise_part(part: dict) -> dict:
+    offers = []
+    for s in part.get('sellers') or []:
+        for o in s.get('offers') or []:
+            price = _unit_price(o.get('prices') or [])
+            if price is None:
+                continue
+            offers.append({'distributor': s['company']['name'], 'price': round(price, 4), 'stock': o.get('inventoryLevel'),
+                           'moq': o.get('moq'), 'url': o.get('clickUrl')})
+    offers.sort(key=lambda o: (not (o['stock'] or 0) > 0, o['price']))
+    best = offers[0] if offers else None
+    return {'manufacturer': (part.get('manufacturer') or {}).get('name'), 'offers': offers[:6],
+            'best_price': best['price'] if best else None, 'best_distributor': best['distributor'] if best else None,
+            'best_stock': best['stock'] if best else None,
+            'total_stock': sum((o['stock'] or 0) for o in offers if (o['stock'] or 0) > 0)}
+
+async def run_supplier_feed(run_id: str):
+    started = datetime.now(timezone.utc).isoformat()
+    await db.feed_runs.update_one({'run_id': run_id}, {'$set': {'status': 'running', 'started_at': started}}, upsert=True)
+    try:
+        parts = sorted({(d.get('part_no') or '').strip().upper() for d in await db.items.find({}, {'part_no': 1, '_id': 0}).to_list(50000)} - {''})
+        matched, unmatched = 0, []
+        for i in range(0, len(parts), 50):
+            chunk = parts[i:i + 50]
+            result = await nexar_lookup(chunk)
+            for ref, hit in zip(chunk, result):
+                found = next((p for p in (hit.get('parts') or []) if (p.get('mpn') or '').upper().replace(' ', '') == ref.replace(' ', '')), None)
+                now = datetime.now(timezone.utc).isoformat()
+                if not found:
+                    unmatched.append(ref)
+                    await db.supplier_prices.update_one({'part_no': ref}, {'$set': {'part_no': ref, 'matched': False, 'fetched_at': now,
+                                                         'offers': [], 'best_price': None, 'best_distributor': None, 'best_stock': None, 'total_stock': 0}}, upsert=True)
+                    continue
+                matched += 1
+                await db.supplier_prices.update_one({'part_no': ref}, {'$set': {'part_no': ref, 'matched': True, 'fetched_at': now, **summarise_part(found)}}, upsert=True)
+        await db.feed_runs.update_one({'run_id': run_id}, {'$set': {'status': 'done', 'finished_at': datetime.now(timezone.utc).isoformat(),
+                                                                     'requested': len(parts), 'matched': matched, 'unmatched': unmatched}})
+    except Exception as e:
+        logger.error(f"Supplier feed failed: {type(e).__name__}")
+        await db.feed_runs.update_one({'run_id': run_id}, {'$set': {'status': 'failed', 'finished_at': datetime.now(timezone.utc).isoformat(),
+                                                                     'error': str(e)[:300]}})
+
+@api.get("/feeds/status")
+async def feed_status(user: dict = Depends(current_user)):
+    last = await db.feed_runs.find({}, {'_id': 0}).sort('started_at', -1).limit(1).to_list(1)
+    return {'configured': nexar_configured(), 'source': 'Nexar (Octopart)', 'last_run': last[0] if last else None}
+
+@api.get("/feeds/prices")
+async def feed_prices(user: dict = Depends(current_user)):
+    feeds = {d['part_no']: d for d in await db.supplier_prices.find({}, {'_id': 0}).to_list(50000)}
+    out = []
+    for g in await library(user=user):
+        if not g['part_no']:
+            continue
+        out.append({'key': g['key'], 'item_id': g['item_id'], 'description': g['description'], 'brand': g['brand'],
+                    'part_no': g['part_no'], 'supplier': g['supplier'], 'quantity': g['quantity'],
+                    'min_rate': g['min_rate'], 'max_rate': g['max_rate'], 'feed': feeds.get(g['part_no'].upper())})
+    return sorted(out, key=lambda r: r['description'])
+
+@api.post("/feeds/refresh", status_code=202)
+async def feed_refresh(background: BackgroundTasks, user: dict = Depends(require_role('admin', 'estimator'))):
+    if not nexar_configured():
+        raise HTTPException(400, "Supplier feed is not connected yet. Add the Nexar keys first.")
+    running = await db.feed_runs.find_one({'status': 'running'}, {'_id': 0})
+    if running:
+        return {'run_id': running['run_id'], 'status': 'running'}
+    run_id = f"manual-{uuid.uuid4()}"
+    await db.feed_runs.insert_one({'run_id': run_id, 'status': 'queued', 'trigger': 'manual', 'started_at': datetime.now(timezone.utc).isoformat()})
+    background.add_task(run_supplier_feed, run_id)
+    return {'run_id': run_id, 'status': 'queued'}
+
+class ApplyPrice(BaseModel):
+    item_id: str
+    price: float
+
+@api.post("/feeds/apply")
+async def feed_apply(body: ApplyPrice, user: dict = Depends(require_role('admin', 'estimator'))):
+    src = await db.items.find_one({'id': body.item_id}, {'_id': 0})
+    if not src or not (src.get('part_no') or '').strip():
+        raise HTTPException(404, "Component not found")
+    if body.price <= 0:
+        raise HTTPException(400, "Price must be greater than zero")
+    ids = await _matching_ids(src)
+    await db.items.update_many({'id': {'$in': ids}}, {'$set': {'rate': round(body.price, 4), 'updated_at': datetime.now(timezone.utc).isoformat()}})
+    await db.rate_changes.insert_one({'id': str(uuid.uuid4()), 'part_no': src['part_no'], 'old_rate': src.get('rate'), 'new_rate': body.price,
+                                      'source': 'supplier_feed', 'user_id': user['id'], 'at': datetime.now(timezone.utc).isoformat()})
+    return {'updated': len(ids)}
+
+@api.post("/cron/supplier-feed", status_code=202)
+async def cron_supplier_feed(request: Request, background: BackgroundTasks, authorization: Optional[str] = Header(None),
+                             x_webhook_id: Optional[str] = Header(None)):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    secret = os.environ.get('WEBHOOK_CRON_SECRET', '')
+    token = authorization[7:] if authorization and authorization.startswith('Bearer ') else ''
+    if not secret or not hmac.compare_digest(token.encode(), secret.encode()):
+        raise HTTPException(401, "Unauthorized")
+    try:
+        envelope = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid body")
+    run_id = x_webhook_id or (envelope or {}).get('run_id')
+    if not run_id:
+        raise HTTPException(400, "Missing run id")
+    if await db.feed_runs.find_one({'run_id': run_id}):
+        return {'status': 'duplicate'}
+    if not nexar_configured():
+        await db.feed_runs.insert_one({'run_id': run_id, 'status': 'skipped', 'trigger': 'cron', 'error': 'Nexar keys not set',
+                                       'started_at': datetime.now(timezone.utc).isoformat()})
+        return {'status': 'skipped'}
+    await db.feed_runs.insert_one({'run_id': run_id, 'status': 'queued', 'trigger': 'cron', 'started_at': datetime.now(timezone.utc).isoformat()})
+    background.add_task(run_supplier_feed, run_id)
+    return {'status': 'queued'}
+
+
 app.include_router(api)
 app.add_middleware(
     CORSMiddleware,
@@ -829,6 +1011,7 @@ async def seed():
     if await db.users.count_documents({}) == 0:
         logger.info("Seeding users…")
         users = [
+            ('jamyang.pema@gmail.com', os.environ.get('OWNER_INITIAL_PASSWORD') or str(uuid.uuid4()), 'Jamyang Pema', 'admin'),
             ('admin@biigenergy.com', 'admin123', 'Admin User', 'admin'),
             ('estimator@biigenergy.com', 'estimator123', 'Estimator User', 'estimator'),
             ('viewer@biigenergy.com', 'viewer123', 'Viewer User', 'viewer'),

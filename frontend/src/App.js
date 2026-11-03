@@ -15,6 +15,7 @@ import Reports from '@/pages/Reports';
 import Users from '@/pages/Users';
 import Library from '@/pages/Library';
 import ComponentViewer from '@/pages/ComponentViewer';
+import SupplierPrices from '@/pages/SupplierPrices';
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -51,6 +52,7 @@ function App() {
             <Route path="component-viewer" element={<Navigate to="/app/parts-catalogue" replace />} />
             <Route path="parts-catalogue" element={<ComponentViewer inApp />} />
             <Route path="library" element={<Library />} />
+            <Route path="supplier-prices" element={<SupplierPrices />} />
             <Route path="users" element={<AdminOnly><Users /></AdminOnly>} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

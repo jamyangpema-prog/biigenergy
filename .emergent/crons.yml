@@ -1,0 +1,9 @@
+crons:
+  - name: supplier-price-feed
+    description: "Pulls current distributor prices and stock for every part number each morning (Perth time)"
+    cron: "0 6 * * *"
+    timezone: "Australia/Perth"
+    endpoint: "{{BASE_URL}}/api/cron/supplier-feed"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true

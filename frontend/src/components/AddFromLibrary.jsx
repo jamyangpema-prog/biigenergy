@@ -31,7 +31,7 @@ function PartRow({ r, projectId, onAdded }) {
         <div className="text-xs text-slate-500 truncate">{[r.brand, r.part_no, r.supplier].filter(Boolean).join(' · ') || '—'} · {fmtAUD(r.rate)}</div>
         {inProject && <div className="text-[11px] text-emerald-700 inline-flex items-center gap-1"><Check className="h-3 w-3" />Already in this project</div>}
       </div>
-      <input type="number" min="0" step="any" value={qty} onChange={(e) => setQty(e.target.value)} className="editable-cell w-16 text-right" data-testid={`lib-add-qty-${r.key}`} />
+      <input type="number" min="0" step="any" value={qty} onChange={(e) => setQty(e.target.value)} className="editable-cell !w-16 shrink-0 text-right" data-testid={`lib-add-qty-${r.key}`} />
       <button onClick={add} disabled={busy} className="px-3 py-1.5 text-sm rounded-md bg-slate-900 text-white hover:bg-slate-800 inline-flex items-center gap-1 disabled:opacity-60" data-testid={`lib-add-btn-${r.key}`}>
         <Plus className="h-4 w-4" />Add
       </button>

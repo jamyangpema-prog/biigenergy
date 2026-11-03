@@ -1,0 +1,53 @@
+{
+  "summary": "Tested Parts Catalogue rename (sidebar, in-app, public, old-route redirects), the public part pop-up, Add from library, component pictures (upload, display everywhere, remove, validation, public serving) and the Edit component regression. All features work. Found and fixed one UI bug: the qty input in the Add-from-library dialog stretched to full width and squeezed the part description to nothing. INCIDENT: during cleanup my test script accidentally deleted customer item #30 (LV525306 MCCB) in 'DB-1 & 2 Component Costing'. A 'Delete' role selector matched the item-row delete icon, and my auto-accept dialog handler confirmed it. I restored it straight away with the original id, item_no 30 and seed values. Project totals now match the pre-incident state exactly (30 items, qty 32, SP $37,239.51, hrs 99.5, CC $28,782.01).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/items/{id}/image, GET /api/images/{path}", "issue": "put_object/get_object use the synchronous 'requests' library inside async routes, which blocks the event loop for up to 120s per upload/download. Wrap them in asyncio.to_thread / run_in_threadpool."},
+      {"endpoint": "POST /api/items/{id}/image", "issue": "The image type is checked only against the client-supplied Content-Type, with no magic-byte check. A non-image sent as image/png is accepted."},
+      {"endpoint": "_matching_ids vs library()", "issue": "library groups by part_no.strip().upper(), but image/apply-all matching uses an exact part_no. Lines whose part_no differs only by case or whitespace show as one library part, but the picture/edit is applied to only some of them."},
+      {"endpoint": "DELETE /api/projects/{id}, DELETE /api/items/{id}", "issue": "The files record is not marked is_deleted when the last item using an image is deleted, which leaves orphan files."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AddFromLibrary PartRow", "issue": "FIXED by testing agent: the qty input had 'editable-cell w-16', but .editable-cell @applies w-full, which overrode w-16. The input filled the row and the description/brand/part/rate text was squeezed to zero width (invisible). Changed to 'editable-cell !w-16 shrink-0 text-right'. Verified: width is 64px and the text is visible.", "selector": "[data-testid^='lib-add-qty-']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "ComponentImage remove / project+item delete", "issues": ["Uses native window.confirm instead of a shadcn AlertDialog, which doesn't match the app's styling"]}
+    ]
+  },
+  "passed_tests": [
+    "Sidebar order: Dashboard, Component Rates, Component Library, Quotation, Reports, Parts Catalogue, Costing Settings, Users",
+    "nav-parts-catalogue -> /app/parts-catalogue with heading 'Parts Catalogue'; /app/component-viewer redirects there",
+    "Public /parts-catalogue and /component-viewer: heading Parts Catalogue, exactly 6 columns, 10 category chips plus All (26), search A9F44332 -> 1, Meters chip -> 1",
+    "Row click opens cv-dialog; title and price match the row ($220.00 – $262.50); details shown; 'No picture available'; Request a Quote links to biigenergy.com.au/contact-us/",
+    "GET /api/public/components has no min_rate/max_rate/rate",
+    "Add project TEST_Lib via topbar -> empty state -> Add from library (26 parts) -> search A9F44332 -> qty 3 -> Add: row shows Schneider/A9F44332/RS Online/3/60.057/$498.23 (correct: 243.23 CC + 255 labour); 'Already in this project' shown",
+    "Picture upload in Library detail sheet: toast 'Picture added to 1 line', image renders (naturalWidth 40); Library thumbnail, Component Rates sheet and public cv-dialog-img all show it; Remove -> gone everywhere, public shows 'No picture available', GET image returns 404",
+    "API: .txt upload -> 400; unauthenticated upload -> 401/403; missing item -> 404; GET /api/images serves the PNG publicly",
+    "Regression: detail sheet shows brand/part/supplier/rate/freight/margin/CC/install cost/SP/used-in projects; Edit component -> rate 12 -> Save updates SP ($112 -> $117.40) and keeps the picture",
+    "Delete TEST_Lib project (admin) works"
+  ],
+  "test_report_links": ["/app/backend/tests/test_parts_catalogue_images.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Review the AddFromLibrary qty-input fix (components/AddFromLibrary.jsx). Check other places that combine .editable-cell with a width utility, because .editable-cell's w-full overrides it",
+    "Run storage requests calls off the event loop (asyncio.to_thread)",
+    "Optional: magic-byte validation for uploads; case-insensitive part_no matching in _matching_ids/apply_all to match library grouping; replace window.confirm with AlertDialog",
+    "Optional: ask the customer to confirm item #30 in DB-1 & 2 (LV525306 MCCB, rate 1318.59, 4+3 hrs, qty 1). It was restored from seed values, which matched the pre-incident totals exactly"
+  ],
+  "critical_code_review_comments": [
+    "server.py is 864 lines; split it into routers (auth, projects, items, library/public, images, exports)",
+    "Sync requests.put/get in async endpoints (upload_item_image, serve_image) block the event loop",
+    "serve_image fetches from object storage on every request with no server-side cache; Cache-Control public max-age=86400 helps the browser only",
+    "AddFromLibrary reloads the full /library after every Add. That's acceptable at the current data size"
+  ],
+  "updated_files": ["/app/frontend/src/components/AddFromLibrary.jsx", "/app/backend/tests/test_parts_catalogue_images.py"],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100% after the qty-input layout fix"},
+  "test_credentials": "admin@biigenergy.com / admin123",
+  "seed_data_creation": "Created TEST_LibAPI and TEST_Lib projects with TEST_ parts and 2 test PNGs; all deleted/removed (0 TEST items, 0 active files, 0 orphan items). Customer item 1a315f56-9ff8-4733-ac47-8e047481f56a was accidentally deleted and then re-inserted with the same id and seed values.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Real customer DB. Do NOT use get_by_role('button', name='Delete'): item-row delete icons have title='Delete' and will match. Do not auto-accept every dialog after a project delete. btn-del-project uses window.confirm. Use the TEST-PIC part pattern (a unique TEST_ part_no in a TEST_ project) for picture tests so customer parts are never touched."
+}
