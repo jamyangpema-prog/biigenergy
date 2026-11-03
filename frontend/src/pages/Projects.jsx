@@ -14,7 +14,7 @@ import { Plus, Search, Pencil, Copy, Trash2, Table2, FileText, Settings2, Folder
 
 const BLANK = { name: '', client: '', description: '' };
 
-function ProjectForm({ open, onOpenChange, initial, onSave, title }) {
+export function ProjectForm({ open, onOpenChange, initial, onSave, title }) {
   const [f, setF] = useState(BLANK);
   useEffect(() => { if (open) setF({ ...BLANK, ...(initial || {}) }); }, [open]); // eslint-disable-line
   return (
@@ -94,7 +94,7 @@ export default function Projects() {
           const s = stats[p.id] || {};
           return (
             <Card key={p.id} className="p-5 border-slate-200 hover:border-slate-400 hover:shadow-md transition-all flex flex-col" data-testid={`project-card-${p.id}`}>
-              <button onClick={() => open(p, '/app/costing')} className="text-left" data-testid={`project-open-${p.id}`}>
+              <button onClick={() => open(p, `/app/costing/${p.id}`)} className="text-left" data-testid={`project-open-${p.id}`}>
                 <div className="font-semibold text-slate-900 text-lg leading-snug hover:underline">{p.name}</div>
                 <div className="text-sm text-slate-500 mt-0.5">{p.client || 'No client'}</div>
                 {p.description && <p className="text-sm text-slate-600 mt-2 line-clamp-2">{p.description}</p>}
@@ -106,7 +106,7 @@ export default function Projects() {
               </div>
               <div className="text-xs text-slate-400 mt-3">Updated {new Date(p.updated_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
               <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-1">
-                <Button size="sm" variant="outline" onClick={() => open(p, '/app/costing')} data-testid={`project-rates-${p.id}`}><Table2 className="h-3.5 w-3.5 mr-1" />Costing</Button>
+                <Button size="sm" variant="outline" onClick={() => open(p, `/app/costing/${p.id}`)} data-testid={`project-rates-${p.id}`}><Table2 className="h-3.5 w-3.5 mr-1" />Costing</Button>
                 <Button size="sm" variant="outline" onClick={() => open(p, '/app/quotation')} data-testid={`project-quote-${p.id}`}><FileText className="h-3.5 w-3.5 mr-1" />Quote</Button>
                 <Button size="sm" variant="outline" onClick={() => open(p, '/app/settings')} data-testid={`project-settings-${p.id}`}><Settings2 className="h-3.5 w-3.5 mr-1" />Settings</Button>
                 <div className="flex-1" />

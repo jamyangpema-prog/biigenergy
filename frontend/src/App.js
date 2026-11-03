@@ -9,6 +9,7 @@ import Marketing from '@/pages/Marketing';
 import Shell from '@/components/Shell';
 import Dashboard from '@/pages/Dashboard';
 import EquipmentCosting from '@/pages/EquipmentCosting';
+import CostingStart from '@/pages/CostingStart';
 import Settings from '@/pages/Settings';
 import Quotation from '@/pages/Quotation';
 import Reports from '@/pages/Reports';
@@ -44,7 +45,8 @@ function App() {
           >
             <Route index element={<Dashboard />} />
             <Route path="projects" element={<Projects />} />
-            <Route path="costing" element={<EquipmentCosting />} />
+            <Route path="costing" element={<CostingStart />} />
+            <Route path="costing/:pid" element={<EquipmentCosting />} />
             <Route path="settings" element={<Settings />} />
             <Route path="quotation" element={<Quotation />} />
             <Route path="reports" element={<Reports />} />

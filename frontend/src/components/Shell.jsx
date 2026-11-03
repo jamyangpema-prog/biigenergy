@@ -5,6 +5,8 @@ import { LayoutDashboard, Table2, Settings, FileText, BarChart3, LogOut, Users, 
 
 const LOGO = 'https://customer-assets-jt897jd0.emergentagent.net/job_equipquote--13ttmu53/artifacts/57e4a1b4741c1c06_LOGO%20BE.png';
 
+export const APP_NAME = 'BiiG Quote';
+
 const NAV = [
   { to: '/app', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/app/projects', label: 'Projects', icon: FolderKanban },
@@ -31,7 +33,8 @@ export default function Shell() {
       <aside className="w-64 shrink-0 bg-slate-900 text-slate-200 flex flex-col fixed inset-y-0 left-0" data-testid="sidebar">
         <div className="px-5 py-5 border-b border-slate-800">
           <img src={LOGO} alt="BIIG ENERGY" className="w-full h-auto rounded-md object-contain" data-testid="sidebar-logo" />
-          <div className="text-xs text-slate-400 mt-3 uppercase tracking-wider">Costing & Quotations</div>
+          <div className="mt-3 text-lg font-semibold text-white tracking-tight" data-testid="app-name">{APP_NAME}</div>
+          <div className="text-xs text-slate-400 uppercase tracking-wider">Costing & Quotations</div>
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {NAV.map((n) => (

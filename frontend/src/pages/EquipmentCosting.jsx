@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Copy, Trash2, ChevronDown, ChevronRight, Search, Download, Upload, FilePlus2, FileSpreadsheet, ArrowUpDown, Hash, Eye } from 'lucide-react';
+import { useNavigate, useParams, Link } from 'react-router-dom';
+import { Plus, Copy, Trash2, ChevronDown, ChevronRight, Search, Download, Upload, FileSpreadsheet, ArrowUpDown, Hash, Eye, ArrowLeft } from 'lucide-react';
 import { LineDetails } from '@/components/LineDetails';
 import { AddFromLibrary } from '@/components/AddFromLibrary';
 import { ProjectPicker } from '@/components/ProjectPicker';
@@ -17,7 +18,11 @@ import { ProjectPicker } from '@/components/ProjectPicker';
 const BLANK = { description: '', brand: '', part_no: '', supplier: '', quantity: 1, rate: 0, install_hrs: 0, wiring_hrs: 0 };
 
 export default function EquipmentCosting() {
-  const { current } = useProjects();
+  const { pid } = useParams();
+  const nav = useNavigate();
+  const { projects, currentId, selectProject, loading } = useProjects();
+  const current = projects.find((p) => p.id === pid) || null;
+  useEffect(() => { if (pid && pid !== currentId) selectProject(pid); }, [pid]); // eslint-disable-line
   const auth = useAuth();
   const { can } = auth;
   const canEdit = auth.user?.role !== 'viewer';
@@ -98,7 +103,7 @@ export default function EquipmentCosting() {
     } catch { toast.error('Import failed'); }
   };
 
-  if (!current) return <div className="text-slate-500">No project selected.</div>;
+  if (!current) return <div className="text-slate-500" data-testid="costing-not-found">{loading ? 'Loading…' : <>Project not found. <Link to="/app/costing" className="text-blue-600 hover:underline">Back to projects</Link></>}</div>;
 
   const totals = items.reduce((a, i) => ({
     qty: a.qty + i.quantity, tcc: a.tcc + i.total_component_cost,
@@ -115,7 +120,8 @@ export default function EquipmentCosting() {
     <div className="space-y-4" data-testid="equipment-costing">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <ProjectPicker />
+          <Link to="/app/costing" className="text-xs text-slate-500 hover:text-slate-900 inline-flex items-center gap-1 mb-2" data-testid="costing-back"><ArrowLeft className="h-3.5 w-3.5" /> All projects</Link>
+          <ProjectPicker onChange={(id) => nav(`/app/costing/${id}`)} />
           <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mt-3">Costing</h1>
           <p className="text-sm text-slate-500">{current.description}</p>
         </div>
@@ -174,15 +180,16 @@ export default function EquipmentCosting() {
               )}
               {filtered.map((it) => (
                 <React.Fragment key={it.id}>
-                  <tr className="border-t border-slate-200 hover:bg-slate-50 cursor-pointer" data-testid={`row-${it.item_no}`}
-                      onClick={(e) => { if (!e.target.closest('input,button')) setDetailId(it.id); }}>
+                  <tr className="border-t border-slate-200 hover:bg-slate-50" data-testid={`row-${it.item_no}`}>
                     <td className="px-2 py-2 text-slate-400">
                       <button onClick={() => toggle(it.id)} data-testid={`expand-${it.item_no}`}>
                         {expanded.has(it.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </button>
                     </td>
                     <td className="px-3 py-2 fin text-slate-500">{it.item_no}</td>
-                    <td className="px-3 py-2"><CellInput disabled={!canEdit} value={it.description} onCommit={(v) => updateItem(it.id, { description: v })} /></td>
+                    <td className="px-3 py-2">
+                      <button onClick={() => setDetailId(it.id)} className="text-left text-sm text-slate-900 hover:text-red-700 hover:underline" title="Open details" data-testid={`desc-${it.item_no}`}>{it.description || 'Untitled component'}</button>
+                    </td>
                     <td className="px-3 py-2"><CellInput disabled={!canEdit} value={it.brand} onCommit={(v) => updateItem(it.id, { brand: v })} /></td>
                     <td className="px-3 py-2"><CellInput disabled={!canEdit} value={it.part_no} onCommit={(v) => updateItem(it.id, { part_no: v })} /></td>
                     <td className="px-3 py-2"><CellInput disabled={!canEdit} value={it.supplier} onCommit={(v) => updateItem(it.id, { supplier: v })} /></td>

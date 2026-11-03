@@ -29,7 +29,7 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const nav = useNavigate();
   const { selectProject } = useProjects();
-  const openProject = (id) => { if (id) { selectProject(id); nav('/app/costing'); } };
+  const openProject = (id) => { if (id) { selectProject(id); nav(`/app/costing/${id}`); } };
 
   useEffect(() => {
     api.get('/dashboard').then((r) => setData(r.data));
