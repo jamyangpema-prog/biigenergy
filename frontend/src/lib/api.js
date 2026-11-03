@@ -14,10 +14,10 @@ api.interceptors.request.use((cfg) => {
 api.interceptors.response.use(
   (r) => r,
   (err) => {
-    if (err?.response?.status === 401 && !window.location.pathname.includes('/login')) {
+    if (err?.response?.status === 401 && window.location.pathname !== '/') {
       localStorage.removeItem('be_token');
       localStorage.removeItem('be_user');
-      window.location.href = '/login';
+      window.location.href = '/';
     }
     return Promise.reject(err);
   }

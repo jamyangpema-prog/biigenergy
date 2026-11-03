@@ -1,15 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Lock, Mail, ArrowRight } from 'lucide-react';
 
-const LOGO = 'https://customer-assets-jt897jd0.emergentagent.net/job_equipquote--13ttmu53/artifacts/57e4a1b4741c1c06_LOGO%20BE.png';
-const BG = 'https://images.unsplash.com/photo-1717386255773-1e3037c81788?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwxfHxpbmR1c3RyaWFsJTIwZW5naW5lZXJpbmclMjBtYW51ZmFjdHVyaW5nJTIwZmFjaWxpdHklMjBjbGVhbnxlbnwwfHx8fDE3OTM1OTI1MDB8MA&ixlib=rb-4.1.0&q=85';
+export const LOGO = 'https://customer-assets-jt897jd0.emergentagent.net/job_equipquote--13ttmu53/artifacts/57e4a1b4741c1c06_LOGO%20BE.png';
 
 export default function Login() {
   const { login, user } = useAuth();
@@ -18,67 +13,55 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  if (user) return <Navigate to="/app" replace />;
+  if (user) return <Navigate to="/hub" replace />;
 
   const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
       await login(email, password);
-      toast.success('Welcome back');
-      nav('/app');
+      nav('/hub');
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'Login failed');
     } finally { setLoading(false); }
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2">
-      <div className="relative hidden lg:block">
-        <img src={BG} alt="" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-slate-900/80" />
-        <div className="relative z-10 flex flex-col justify-between h-full p-10 text-white">
-          <div className="flex items-center gap-3">
-            <img src={LOGO} className="h-12 w-12 rounded-md object-cover" alt="BIIG ENERGY" />
-            <div>
-              <div className="text-xl font-semibold">BIIG ENERGY</div>
-              <div className="text-xs text-slate-300 uppercase tracking-wider">Equipment Costing System</div>
-            </div>
+    <div className="portal-bg min-h-screen text-white flex flex-col" data-testid="login-page">
+      <div className="portal-glow" />
+      <header className="relative z-10 px-6 sm:px-10 py-6 flex items-center justify-between">
+        <img src={LOGO} alt="BIIG ENERGY" className="h-12 w-auto rounded-md" data-testid="login-logo" />
+        <span className="text-xs uppercase tracking-[0.25em] text-white/50">Staff portal</span>
+      </header>
+      <main className="relative z-10 flex-1 grid lg:grid-cols-[1.1fr_1fr] gap-12 items-center px-6 sm:px-10 lg:px-20 pb-16">
+        <div className="max-w-xl portal-rise">
+          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-red-400 font-semibold mb-6">
+            <span className="h-px w-8 bg-red-500" /> BIIG ENERGY
           </div>
-          <div className="max-w-md">
-            <h1 className="text-3xl font-semibold mb-3">Centralised equipment costing & quotations.</h1>
-            <p className="text-slate-300">Live calculations, multiple projects, Excel in/out, and PDF quotes — purpose-built for Australian engineering & electrical manufacturing.</p>
-          </div>
-          <div className="text-xs text-slate-400">© {new Date().getFullYear()} BIIG Energy · All prices in AUD</div>
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight leading-[1.05]">
+            One sign-in.<br /><span className="text-white/40">Every system.</span>
+          </h1>
+          <p className="mt-6 text-base text-white/60 max-w-md">Costing, document control and employee tracking for the BIIG ENERGY team, all in one place.</p>
         </div>
-      </div>
-
-      <div className="flex items-center justify-center p-8 bg-slate-50">
-        <Card className="w-full max-w-md p-8 border-slate-200">
-          <div className="lg:hidden mb-6 flex items-center gap-3">
-            <img src={LOGO} className="h-10 w-10 rounded object-cover" alt="BIIG ENERGY" />
-            <div className="font-semibold text-slate-900">BIIG ENERGY</div>
+        <form onSubmit={submit} className="portal-card portal-rise w-full max-w-md lg:justify-self-end p-8 sm:p-10" style={{ animationDelay: '120ms' }} data-testid="login-form">
+          <h2 className="text-2xl font-semibold tracking-tight">Log in</h2>
+          <p className="text-sm text-white/50 mt-1 mb-8">Use your BIIG ENERGY account.</p>
+          <label className="block text-xs uppercase tracking-wider text-white/50 mb-2" htmlFor="email">Email</label>
+          <div className="portal-input mb-5"><Mail className="h-4 w-4 text-white/40" />
+            <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" data-testid="login-email" placeholder="you@biigenergy.com.au" />
           </div>
-          <h2 className="text-2xl font-semibold text-slate-900 mb-1">Sign in</h2>
-          <p className="text-sm text-slate-500 mb-6">Use your BIIG Energy credentials.</p>
-          <form onSubmit={submit} className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                     data-testid="login-email" required autoComplete="email" />
-            </div>
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                     data-testid="login-password" required autoComplete="current-password" />
-            </div>
-            <Button type="submit" disabled={loading} data-testid="login-submit"
-                    className="w-full bg-slate-900 hover:bg-slate-800 text-white">
-              {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Sign in
-            </Button>
-          </form>
-        </Card>
-      </div>
+          <label className="block text-xs uppercase tracking-wider text-white/50 mb-2" htmlFor="password">Password</label>
+          <div className="portal-input mb-8"><Lock className="h-4 w-4 text-white/40" />
+            <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" data-testid="login-password" placeholder="••••••••" />
+          </div>
+          <button type="submit" disabled={loading} data-testid="login-submit"
+                  className="group w-full h-12 rounded-full bg-red-600 hover:bg-red-500 disabled:opacity-60 font-semibold inline-flex items-center justify-center gap-2 transition-colors">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Log in <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></>}
+          </button>
+          <p className="text-xs text-white/40 mt-6 text-center">Accounts are created by your administrator.</p>
+        </form>
+      </main>
+      <footer className="relative z-10 px-6 sm:px-10 py-5 text-xs text-white/30">© {new Date().getFullYear()} BIIG ENERGY</footer>
     </div>
   );
 }

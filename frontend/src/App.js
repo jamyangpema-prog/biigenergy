@@ -5,7 +5,7 @@ import { Toaster } from 'sonner';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { ProjectProvider } from '@/lib/projects';
 import Login from '@/pages/Login';
-import Marketing from '@/pages/Marketing';
+import SystemHub from '@/pages/SystemHub';
 import Shell from '@/components/Shell';
 import Dashboard from '@/pages/Dashboard';
 import EquipmentCosting from '@/pages/EquipmentCosting';
@@ -21,7 +21,7 @@ import SupplierPrices from '@/pages/SupplierPrices';
 function Protected({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-500">Loading…</div>;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -37,8 +37,9 @@ function App() {
       <BrowserRouter>
         <Toaster position="top-right" richColors />
         <Routes>
-          <Route path="/" element={<Marketing />} />
-          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<Login />} />
+          <Route path="/login" element={<Navigate to="/" replace />} />
+          <Route path="/hub" element={<Protected><SystemHub /></Protected>} />
           <Route
             path="/app"
             element={<Protected><ProjectProvider><Shell /></ProjectProvider></Protected>}

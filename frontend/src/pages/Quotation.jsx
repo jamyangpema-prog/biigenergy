@@ -6,7 +6,7 @@ import { DownloadMenu } from '@/components/DownloadMenu';
 import { ProjectPicker } from '@/components/ProjectPicker';
 
 export default function Quotation() {
-  const { current } = useProjects();
+  const { current, projects, selectProject } = useProjects();
   const [q, setQ] = useState(null);
 
   useEffect(() => {
@@ -19,7 +19,8 @@ export default function Quotation() {
 
 
   return (
-    <div className="space-y-5 max-w-5xl" data-testid="quotation-page">
+    <div className="flex flex-col xl:flex-row gap-6 items-start" data-testid="quotation-layout">
+    <div className="space-y-5 flex-1 min-w-0 max-w-5xl" data-testid="quotation-page">
       <div className="flex items-center justify-between">
         <div>
           <ProjectPicker />
@@ -105,6 +106,27 @@ export default function Quotation() {
         {p.terms && <Section title="Terms & Conditions" text={p.terms} />}
       </Card>
     </div>
+    <ProjectPane projects={projects} currentId={current.id} onPick={selectProject} />
+    </div>
+  );
+}
+
+function ProjectPane({ projects, currentId, onPick }) {
+  return (
+    <aside className="w-full xl:w-72 shrink-0 xl:sticky xl:top-20" data-testid="quote-projects-pane">
+      <Card className="border-slate-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-600">All projects ({projects.length})</div>
+        <div className="max-h-[70vh] overflow-y-auto">
+          {projects.map((p) => (
+            <button key={p.id} onClick={() => onPick(p.id)} data-testid={`quote-project-${p.id}`}
+                    className={`w-full text-left px-4 py-3 border-t border-slate-100 first:border-0 transition-colors ${p.id === currentId ? 'bg-slate-900 text-white' : 'hover:bg-slate-50'}`}>
+              <div className="text-sm font-medium leading-snug">{p.name}</div>
+              <div className={`text-xs mt-0.5 ${p.id === currentId ? 'text-white/60' : 'text-slate-500'}`}>{p.client || 'No client'}</div>
+            </button>
+          ))}
+        </div>
+      </Card>
+    </aside>
   );
 }
 

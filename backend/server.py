@@ -236,8 +236,45 @@ async def update_project(pid: str, p: Project, user: dict = Depends(require_role
 
 @api.delete("/projects/{pid}")
 async def delete_project(pid: str, user: dict = Depends(require_role('admin'))):
+    p = await db.projects.find_one({'id': pid}, {'_id': 0})
+    if not p:
+        raise HTTPException(404, "Project not found")
+    items = await db.items.find({'project_id': pid}, {'_id': 0}).to_list(10000)
+    p.update(deleted_at=datetime.now(timezone.utc).isoformat(), deleted_by=user.get('name') or user.get('email'), item_count=len(items))
+    await db.deleted_projects.insert_one(dict(p))
+    if items:
+        await db.deleted_items.insert_many([dict(i) for i in items])
     await db.projects.delete_one({'id': pid})
     await db.items.delete_many({'project_id': pid})
+    return {'ok': True}
+
+@api.get("/trash/projects")
+async def list_deleted_projects(user: dict = Depends(require_role('admin'))):
+    return await db.deleted_projects.find({}, {'_id': 0}).sort('deleted_at', -1).to_list(1000)
+
+@api.post("/trash/projects/{pid}/restore")
+async def restore_project(pid: str, user: dict = Depends(require_role('admin'))):
+    p = await db.deleted_projects.find_one({'id': pid}, {'_id': 0})
+    if not p:
+        raise HTTPException(404, "Deleted project not found")
+    if await db.projects.find_one({'id': pid}):
+        raise HTTPException(409, "Project already exists")
+    for k in ('deleted_at', 'deleted_by', 'item_count'):
+        p.pop(k, None)
+    items = await db.deleted_items.find({'project_id': pid}, {'_id': 0}).to_list(10000)
+    await db.projects.insert_one(dict(p))
+    if items:
+        await db.items.insert_many([dict(i) for i in items])
+    await db.deleted_projects.delete_one({'id': pid})
+    await db.deleted_items.delete_many({'project_id': pid})
+    return {'ok': True, 'items': len(items)}
+
+@api.delete("/trash/projects/{pid}")
+async def purge_project(pid: str, user: dict = Depends(require_role('admin'))):
+    res = await db.deleted_projects.delete_one({'id': pid})
+    if not res.deleted_count:
+        raise HTTPException(404, "Deleted project not found")
+    await db.deleted_items.delete_many({'project_id': pid})
     return {'ok': True}
 
 @api.post("/projects/{pid}/duplicate")
@@ -810,7 +847,7 @@ def table_file(name: str, title: str, subtitle: str, headers: list, rows: list, 
         style.append(('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#E2E8F0')))
     t.setStyle(TableStyle(style))
     sub = ParagraphStyle('s', parent=styles['Normal'], textColor=colors.HexColor('#475569'), fontSize=9)
-    story = [Paragraph("BIIG ENERGY · BiiG Quote", sub), Paragraph(title, styles['Heading2']),
+    story = [Paragraph("BIIG ENERGY · Costing System", sub), Paragraph(title, styles['Heading2']),
              Paragraph(f"{subtitle} · {datetime.now().strftime('%d %b %Y')}", sub), Spacer(1, 4*mm), t]
     doc.build(story); buf.seek(0)
     return StreamingResponse(buf, media_type='application/pdf', headers={'Content-Disposition': f'attachment; filename="{safe}.pdf"'})

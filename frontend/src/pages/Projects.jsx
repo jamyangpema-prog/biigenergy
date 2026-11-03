@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Plus, Search, Pencil, Copy, Trash2, Table2, FileText, Settings2, FolderKanban } from 'lucide-react';
+import { DeletedProjects } from '@/components/DeletedProjects';
 
 const BLANK = { name: '', client: '', description: '' };
 
@@ -44,6 +45,7 @@ export default function Projects() {
   const [stats, setStats] = useState({});
   const [q, setQ] = useState('');
   const [form, setForm] = useState(null); // {mode:'new'|'edit', project}
+  const [trashRev, setTrashRev] = useState(0);
 
   const loadStats = () => api.get('/dashboard').then((r) => setStats(Object.fromEntries(r.data.per_project.map((p) => [p.id, p]))));
   useEffect(() => { loadStats(); }, [projects]);
@@ -69,8 +71,8 @@ export default function Projects() {
   const duplicate = async (p) => { await api.post(`/projects/${p.id}/duplicate`); await refresh(); toast.success('Project duplicated'); };
   const remove = async (p) => {
     if (projects.length <= 1) return toast.error('At least one project is required');
-    if (!window.confirm(`Delete project "${p.name}" and all its items? This cannot be undone.`)) return;
-    await api.delete(`/projects/${p.id}`); await refresh(); toast.success('Project deleted');
+    if (!window.confirm(`Delete project "${p.name}"? You can restore it later from Recently deleted.`)) return;
+    await api.delete(`/projects/${p.id}`); await refresh(); setTrashRev((v) => v + 1); toast.success('Project moved to Recently deleted');
   };
 
   return (
@@ -118,6 +120,8 @@ export default function Projects() {
           );
         })}
       </div>
+
+      {isAdmin && <DeletedProjects rev={trashRev} onRestored={refresh} />}
 
       <ProjectForm open={!!form} onOpenChange={(o) => !o && setForm(null)} initial={form?.project}
                    title={form?.mode === 'edit' ? 'Edit project' : 'New project'} onSave={save} />

@@ -19,6 +19,31 @@ body {
     font-variant-numeric: tabular-nums;
 }
 
+.portal-bg {
+    position: relative; overflow: hidden; background-color: #0A0D14;
+    background-image: linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: 56px 56px;
+}
+.portal-glow {
+    position: absolute; width: 900px; height: 900px; right: -300px; top: -350px; pointer-events: none;
+    background: radial-gradient(circle, rgba(253,5,49,0.28) 0%, rgba(253,5,49,0) 60%);
+}
+.portal-card {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px;
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    transition: border-color 200ms ease, transform 200ms ease;
+}
+.portal-input {
+    display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 16px; border-radius: 12px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); transition: border-color 150ms ease;
+}
+.portal-input:focus-within { border-color: #FD0531; }
+.portal-input input { flex: 1; background: transparent; outline: none; color: #fff; font-size: 14px; }
+.portal-input input::placeholder { color: rgba(255,255,255,0.3); }
+.portal-rise { animation: portal-rise 600ms cubic-bezier(.2,.7,.2,1) backwards; }
+@keyframes portal-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+
 @layer base {
     :root {
         --background: 210 40% 98%;

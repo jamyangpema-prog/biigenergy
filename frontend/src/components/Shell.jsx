@@ -2,11 +2,9 @@ import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { confirmLeave, setUnsaved } from '@/lib/unsaved';
-import { LayoutDashboard, Table2, Settings, FileText, BarChart3, LogOut, Users, Boxes, TrendingUp, FolderKanban } from 'lucide-react';
+import { LayoutDashboard, Table2, Settings, FileText, BarChart3, LogOut, Users, Boxes, TrendingUp, FolderKanban, LayoutGrid } from 'lucide-react';
 
 const LOGO = 'https://customer-assets-jt897jd0.emergentagent.net/job_equipquote--13ttmu53/artifacts/57e4a1b4741c1c06_LOGO%20BE.png';
-
-export const APP_NAME = 'BiiG Quote';
 
 const NAV = [
   { to: '/app', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -34,8 +32,7 @@ export default function Shell() {
       <aside className="w-64 shrink-0 bg-slate-900 text-slate-200 flex flex-col fixed inset-y-0 left-0" data-testid="sidebar">
         <div className="px-5 py-5 border-b border-slate-800">
           <img src={LOGO} alt="BIIG ENERGY" className="w-full h-auto rounded-md object-contain" data-testid="sidebar-logo" />
-          <div className="mt-3 text-lg font-semibold text-white tracking-tight" data-testid="app-name">{APP_NAME}</div>
-          <div className="text-xs text-slate-400 uppercase tracking-wider">Costing & Quotations</div>
+          <div className="mt-3 text-lg font-semibold text-white tracking-tight" data-testid="app-name">Costing System</div>
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {NAV.map((n) => (
@@ -66,7 +63,13 @@ export default function Shell() {
             </NavLink>
           )}
         </nav>
-        <div className="p-4 border-t border-slate-800 text-xs text-slate-500">v1.0 · AUD</div>
+        <div className="p-3 border-t border-slate-800">
+          <NavLink to="/hub" onClick={(e) => { if (!confirmLeave()) e.preventDefault(); }} data-testid="nav-all-systems"
+                   className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
+            <LayoutGrid className="h-4 w-4" /> All systems
+          </NavLink>
+          <div className="px-3 pt-2 text-xs text-slate-500">v1.0 · AUD</div>
+        </div>
       </aside>
 
       <div className="flex-1 ml-64 flex flex-col min-w-0">
@@ -80,7 +83,7 @@ export default function Shell() {
               {user?.role?.toUpperCase()}
             </span>
             <button
-              onClick={() => { if (!confirmLeave()) return; setUnsaved(false); logout(); nav('/login'); }}
+              onClick={() => { if (!confirmLeave()) return; setUnsaved(false); logout(); nav('/'); }}
               data-testid="logout-btn"
               className="text-slate-500 hover:text-slate-900 p-2 rounded hover:bg-slate-100"
               title="Log out"
