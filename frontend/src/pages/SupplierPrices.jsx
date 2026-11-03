@@ -47,10 +47,12 @@ function PriceRow({ r, canEdit, onApplied }) {
   const rate = r.max_rate;
   const live = f?.best_price;
   const diff = live && rate ? ((live - rate) / rate) * 100 : null;
-  const apply = async () => {
-    if (!window.confirm(`Set the rate for ${r.part_no} to ${fmtAUD(live)} on every line in every project?`)) return;
+  const key = (r.supplier || '').trim().split(/\s+/)[0]?.toLowerCase();
+  const mine = key ? (f?.offers || []).find((o) => o.distributor.toLowerCase().startsWith(key)) : null;
+  const apply = async (price) => {
+    if (!window.confirm(`Set the rate for ${r.part_no} to ${fmtAUD(price)} on every line in every project?`)) return;
     setBusy(true);
-    try { const { data } = await api.post('/feeds/apply', { item_id: r.item_id, price: live }); toast.success(`Rate updated on ${data.updated} line${data.updated === 1 ? '' : 's'}`); onApplied(); }
+    try { const { data } = await api.post('/feeds/apply', { item_id: r.item_id, price }); toast.success(`Rate updated on ${data.updated} line${data.updated === 1 ? '' : 's'}`); onApplied(); }
     catch (e) { toast.error(e?.response?.data?.detail || 'Could not apply price'); } finally { setBusy(false); }
   };
   return (
@@ -62,22 +64,25 @@ function PriceRow({ r, canEdit, onApplied }) {
         <td className="px-3 py-2"><div className="font-medium text-slate-900">{r.description}</div><div className="text-xs text-slate-500">{r.brand || '—'} · {r.supplier || '—'}</div></td>
         <td className="px-3 py-2 fin">{r.part_no}</td>
         <td className="px-3 py-2 fin text-right">{r.min_rate === r.max_rate ? fmtAUD(rate) : `${fmtAUD(r.min_rate)} – ${fmtAUD(r.max_rate)}`}</td>
+        <td className="px-3 py-2 fin text-right" data-testid={`feed-mine-${r.part_no}`}>
+          {mine ? <>{fmtAUD(mine.price)}<div className="text-xs text-slate-500">{mine.distributor} · stock {mine.stock == null ? '?' : fmtNum(mine.stock, 0)}</div></> : <span className="text-slate-400">—</span>}
+        </td>
         <td className="px-3 py-2 fin text-right font-semibold text-slate-900">
           {!f ? <span className="text-slate-400 font-normal">Not checked</span> : !f.matched ? <span className="text-slate-400 font-normal">No match</span> : live == null ? <span className="text-slate-400 font-normal">No AUD price</span> : fmtAUD(live)}
           {f?.best_distributor && <div className="text-xs font-normal text-slate-500">{f.best_distributor}</div>}
         </td>
-        <td className="px-3 py-2 fin text-right">{f?.matched ? (f.total_stock > 0 ? fmtNum(f.total_stock, 0) : <span className="text-red-600">Out of stock</span>) : '—'}</td>
+        <td className="px-3 py-2 fin text-right">{!f?.matched ? '—' : !f.offers?.length ? <span className="text-slate-400">No offers</span> : f.total_stock > 0 ? fmtNum(f.total_stock, 0) : <span className="text-red-600">Out of stock</span>}</td>
         <td className="px-3 py-2 fin text-right">
           {diff == null ? '—' : <span className={diff > 0.5 ? 'text-red-600' : diff < -0.5 ? 'text-emerald-700' : 'text-slate-600'}>{diff > 0 ? '+' : ''}{diff.toFixed(1)}%</span>}
         </td>
         <td className="px-3 py-2 text-right">
           {canEdit && live != null && Math.abs(diff ?? 0) > 0.05 && (
-            <Button size="sm" variant="outline" onClick={apply} disabled={busy} data-testid={`feed-apply-${r.part_no}`}>Apply</Button>
+            <Button size="sm" variant="outline" onClick={() => apply(live)} disabled={busy} data-testid={`feed-apply-${r.part_no}`}>Apply best</Button>
           )}
         </td>
       </tr>
       {open && (
-        <tr className="bg-slate-50/70"><td colSpan={8} className="px-10 py-3">
+        <tr className="bg-slate-50/70"><td colSpan={9} className="px-10 py-3">
           <div className="text-xs uppercase tracking-wider text-slate-500 mb-2">Distributor offers · checked {fmtTime(f.fetched_at)}</div>
           <div className="grid md:grid-cols-3 gap-2">
             {f.offers.map((o, i) => (
@@ -85,6 +90,9 @@ function PriceRow({ r, canEdit, onApplied }) {
                 <div className="flex items-center justify-between"><span className="font-medium text-slate-900">{o.distributor}</span>
                   {o.url && <a href={o.url} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-slate-900"><ExternalLink className="h-3.5 w-3.5" /></a>}</div>
                 <div className="fin mt-1">{fmtAUD(o.price)} <span className="text-slate-500">· stock {o.stock == null ? 'unknown' : fmtNum(o.stock, 0)} · MOQ {o.moq ?? '—'}</span></div>
+                {canEdit && Math.abs(o.price - rate) > 0.005 && (
+                  <button onClick={() => apply(o.price)} disabled={busy} className="mt-2 text-xs font-medium text-slate-700 hover:text-slate-900 underline" data-testid={`feed-use-${r.part_no}-${i}`}>Use this price</button>
+                )}
               </div>
             ))}
           </div>
@@ -152,18 +160,18 @@ export default function SupplierPrices() {
           <table className="w-full text-sm" data-testid="feed-table">
             <thead><tr className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
               <th className="w-8" /><th className="px-3 py-3 text-left">Component</th><th className="px-3 py-3 text-left">Part No</th>
-              <th className="px-3 py-3 text-right">Your rate</th><th className="px-3 py-3 text-right">Live price</th><th className="px-3 py-3 text-right">Stock</th>
-              <th className="px-3 py-3 text-right">Difference</th><th className="w-24" />
+              <th className="px-3 py-3 text-right">Your rate</th><th className="px-3 py-3 text-right">Your supplier</th><th className="px-3 py-3 text-right">Best live price</th><th className="px-3 py-3 text-right">Stock</th>
+              <th className="px-3 py-3 text-right">Difference</th><th className="w-28" />
             </tr></thead>
             <tbody>
-              {!rows && <tr><td colSpan={8} className="p-12 text-center text-slate-500">Loading…</td></tr>}
-              {rows && view.length === 0 && <tr><td colSpan={8} className="p-12 text-center text-slate-500">No parts with part numbers found.</td></tr>}
+              {!rows && <tr><td colSpan={9} className="p-12 text-center text-slate-500">Loading…</td></tr>}
+              {rows && view.length === 0 && <tr><td colSpan={9} className="p-12 text-center text-slate-500">No parts with part numbers found.</td></tr>}
               {view.map((r) => <PriceRow key={r.key} r={r} canEdit={canEdit} onApplied={load} />)}
             </tbody>
           </table>
         </div>
       </Card>
-      <p className="text-xs text-slate-500">Components without a part number can't be looked up. Prices are refreshed daily and replaced on each check.</p>
+      <p className="text-xs text-slate-500">Components without a part number can't be looked up. "Your supplier" shows the offer from the supplier on your component (e.g. RS). Overseas distributor prices are converted to AUD and may not include shipping or match your pack size — check before applying. Prices are refreshed daily.</p>
     </div>
   );
 }
