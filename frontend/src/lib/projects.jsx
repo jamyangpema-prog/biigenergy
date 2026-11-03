@@ -12,15 +12,13 @@ export function ProjectProvider({ children }) {
     try {
       const { data } = await api.get('/projects');
       setProjects(data);
-      if (!currentId && data.length) {
-        setCurrentId(data[0].id);
-        localStorage.setItem('be_project', data[0].id);
-      } else if (currentId && !data.find((p) => p.id === currentId) && data.length) {
-        setCurrentId(data[0].id);
-        localStorage.setItem('be_project', data[0].id);
-      }
+      setCurrentId((cur) => {
+        const next = cur && data.find((p) => p.id === cur) ? cur : data[0]?.id || null;
+        if (next) localStorage.setItem('be_project', next);
+        return next;
+      });
     } finally { setLoading(false); }
-  }, [currentId]);
+  }, []);
 
   useEffect(() => { refresh(); }, []); // eslint-disable-line
 

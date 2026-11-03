@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend testing of the Costing start screen, details-sheet trigger change, project routing, and the BiiG Quote name. Almost everything works: the start screen with new and project cards, View/Edit, the back link, clicks on non-description cells (no sheet opens), inline Qty edit (reverted afterwards), the description button and eye icon opening the sheet, the picker changing the URL, Projects 'Costing' and Dashboard row links, creating a TEST project (then deleted), Edit->Save opening the costing, start-screen search, and the sidebar app-name. Initially document.title was the stale 'Emergent | Fullstack App' because the dev server was serving an old index.html. It was fixed by restarting the frontend; it is now 'BiiG Quote | BIIG ENERGY'. One real bug: opening /app/costing/{id} directly with no stored project makes ProjectProvider overwrite the current project with projects[0].",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ProjectProvider (lib/projects.js) + EquipmentCosting deep link", "issue": "Race condition. When localStorage 'be_project' is empty (e.g. right after login), going directly to /app/costing/{id} shows the right items, but the project-selector shows the wrong project ('DB-1 & 2 Component Costing'), and localStorage be_project is overwritten with projects[0].id. The cause: refresh() captures the initial currentId=null in its closure, so after GET /projects it calls setCurrentId(data[0].id), overriding the selectProject(pid) from EquipmentCosting's mount effect. As a result Quotation, Settings and Reports then point at the wrong project. Fix: use a functional setState in refresh (setCurrentId(cur => cur && data.find(p=>p.id===cur) ? cur : data[0]?.id)), or re-sync in EquipmentCosting with deps [pid, projects] / [pid, currentId].", "selector": "[data-testid=project-selector]", "priority": "HIGH"},
+      {"component": "EquipmentCosting invalid pid", "issue": "/app/costing/nonexistent-id shows costing-not-found correctly, but it calls selectProject('nonexistent-id'), which saves an invalid id to localStorage. Other pages then have current=null until the page is reloaded. Only call selectProject when pid exists in projects.", "selector": "[data-testid=costing-not-found]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Costing start screen", "issues": ["The Items/Selling stats on project cards briefly show 0 / $0.00 until /api/dashboard returns. Consider a loading placeholder."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix the ProjectProvider refresh() stale-closure race so deep links to /app/costing/{id} keep the picker and the stored project in sync with the URL pid",
+    "Don't persist an invalid pid via selectProject in EquipmentCosting"
+  ],
+  "critical_code_review_comments": [
+    "lib/projects.js refresh uses the stale currentId from its useCallback closure (it is only called once on mount via useEffect []), which causes the deep-link race above",
+    "EquipmentCosting useEffect [pid] only syncs once. If something else changes currentId, the picker and the URL can drift apart",
+    "CellInput compares v !== value, where v is a string and value is a number, so re-entering the same number still triggers a PUT. Minor.",
+    "CellInputs have no data-testid (brand/qty/rate cells). Consider adding ones like qty-{item_no} so tests are less fragile.",
+    "public/index.html changes need a frontend restart in this dev setup. The served title was stale until a supervisor restart."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "92%"},
+  "seed_data_creation": "Created TEST_Start Project (renamed to TEST_Start Project 2) via the UI, then deleted it via DELETE /api/projects/dcf3abcc-e7b4-43e8-9636-3d393ccbca74. Smart BEMS item #1 qty was changed 1->3, then reverted to 1 (verified via API).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Projects: Smart BEMS 37d87972-c524-4aa1-9069-51ac32ec1564 (7 items), RTO123 132fdd3b-613d-4a26-91da-2ed08c5543ec (72 items), SMSD 714067cd..., DB-1&2 4d1e5e9c-3530-429d-ac57-241ead53a961. To reproduce the race: log in, localStorage.removeItem('be_project'), goto /app/costing/{non-first id}, then check the project-selector text. Selectors for inline cells: [data-testid=row-N] td:nth-child(4) input = Brand, td:nth-child(7) input = Qty.",
+  "rca of the issue": "Picker mismatch: ProjectProvider.refresh is memoised with the initial currentId (null) and runs once on mount. EquipmentCosting's mount effect runs selectProject(pid) first, then the GET /projects response arrives and refresh's stale closure sees !currentId, so it sets currentId to data[0].id. Reproduced every time with empty localStorage. Mitigation: use a functional updater in refresh."
+}

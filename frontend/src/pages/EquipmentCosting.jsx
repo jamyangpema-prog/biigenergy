@@ -22,7 +22,7 @@ export default function EquipmentCosting() {
   const nav = useNavigate();
   const { projects, currentId, selectProject, loading } = useProjects();
   const current = projects.find((p) => p.id === pid) || null;
-  useEffect(() => { if (pid && pid !== currentId) selectProject(pid); }, [pid]); // eslint-disable-line
+  useEffect(() => { if (current && pid !== currentId) selectProject(pid); }, [pid, current, currentId]); // eslint-disable-line
   const auth = useAuth();
   const { can } = auth;
   const canEdit = auth.user?.role !== 'viewer';

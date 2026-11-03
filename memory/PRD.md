@@ -35,6 +35,12 @@
 - Edit component everywhere: detail panel "Edit component" (admin/estimator) → `PUT /api/items/{id}/apply-all` updates description, brand, part no, supplier, rate, install/wiring hrs on all matching lines (same part no, else same description) in every project; quantity editable per line.
 - Public Component_Viewer (`/component-viewer`, embed mode `?embed=1`, `GET /api/public/components`): only Description, Brand, Part No, Supplier, Quantity, Price; shows per-unit selling price (SP/Q, ex GST, incl. install) — purchase rate no longer exposed; category filter chips (auto-categorised by description keywords: Chassis, Enclosures & Panels, Meters, Surge Protection, Circuit Breakers, Fuse Carriers, Current Transformers, Busbars & Insulators, Cable Ducting, Other); styled to biigenergy.com.au (Inter, #1F2937 dark, #FD0531 red, #F1F1F1/#F7F7F7 greys); contact details taken from biigenergy.com.au footer.
 
+### 2026-11-03
+- App named "BiiG Quote" (browser title + under sidebar logo; `APP_NAME` in Shell.jsx).
+- Costing landing `/app/costing` = start screen (Create new project card + project cards with View/Edit; Edit opens rename dialog then the costing). Editor at `/app/costing/:pid`; Projects/Dashboard/picker link there.
+- Costing table: details pop-up opens only from description text or eye icon; other cells edit inline. Description is edited in the details pop-up.
+- Fixed ProjectProvider stale-closure race on deep links. Tested (iteration_3).
+
 ## Backlog
 - P0: connect contact form to email delivery (Resend)
 - P1: full end-to-end test run (previous run cut short); logo on PDF quotes
