@@ -97,6 +97,7 @@ class EquipmentItem(BaseModel):
     labour_rate_override: Optional[float] = None
     label: Optional[str] = ''  # e.g., "UNIT 23 METER"
     image_path: Optional[str] = None
+    component_id: Optional[str] = None
     uom: Optional[str] = 'ea'
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
@@ -278,6 +279,8 @@ async def add_item(pid: str, it: EquipmentItem, user: dict = Depends(require_rol
     last = await db.items.find({'project_id': pid}).sort('item_no', -1).limit(1).to_list(1)
     it.item_no = (last[0]['item_no'] + 1) if last else 1
     doc = it.model_dump()
+    if not doc.get('component_id') or not await db.components.find_one({'id': doc['component_id']}):
+        doc['component_id'] = await create_component_from_item(doc)
     await db.items.insert_one(dict(doc))
     return calc_item(doc, proj['settings'])
 
@@ -294,45 +297,120 @@ async def update_item(iid: str, it: EquipmentItem, user: dict = Depends(require_
     proj = await db.projects.find_one({'id': doc['project_id']}, {'_id': 0})
     return calc_item(doc, proj['settings'])
 
-@api.get("/library")
-async def library(user: dict = Depends(current_user)):
+class Component(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    description: str
+    brand: Optional[str] = ''
+    part_no: Optional[str] = ''
+    supplier: Optional[str] = ''
+    uom: Optional[str] = 'ea'
+    rate: float = 0
+    install_hrs: float = 0
+    wiring_hrs: float = 0
+    category: Optional[str] = None
+    image_path: Optional[str] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+SYNC_FIELDS = ('description', 'brand', 'part_no', 'supplier', 'uom', 'rate', 'image_path')
+
+async def create_component_from_item(doc: dict) -> str:
+    desc = (doc.get('description') or '').strip() or 'Untitled component'
+    comp = Component(description=desc, brand=doc.get('brand') or '', part_no=(doc.get('part_no') or '').strip(),
+                     supplier=doc.get('supplier') or '', uom=doc.get('uom') or 'ea', rate=float(doc.get('rate') or 0),
+                     install_hrs=float(doc.get('install_hrs') or 0), wiring_hrs=float(doc.get('wiring_hrs') or 0),
+                     image_path=doc.get('image_path'), category=categorise(desc))
+    await db.components.insert_one(comp.model_dump())
+    return comp.id
+
+async def component_usage(comp_ids=None) -> dict:
     projects = {p['id']: p for p in await db.projects.find({}, {'_id': 0}).to_list(1000)}
-    groups = {}
-    for raw in await db.items.find({}, {'_id': 0}).sort('item_no', 1).to_list(50000):
-        p = projects.get(raw['project_id'])
+    q = {'component_id': {'$in': comp_ids}} if comp_ids is not None else {'component_id': {'$ne': None}}
+    out = {}
+    for it in await db.items.find(q, {'_id': 0}).sort('item_no', 1).to_list(50000):
+        p = projects.get(it['project_id'])
         if not p:
             continue
-        c = calc_item(raw, p['settings'])
-        part = (c.get('part_no') or '').strip()
-        key = f"pn:{part.upper()}" if part else f"d:{(c.get('description') or '').strip().upper()}"
-        g = groups.setdefault(key, {
-            'key': key, 'item_id': c['id'], 'description': c.get('description', ''),
-            'brand': c.get('brand') or '', 'part_no': part, 'supplier': c.get('supplier') or '',
-            'quantity': 0, 'total_component_cost': 0, 'labour_cost': 0, 'selling_price': 0,
-            'min_rate': c['rate'], 'max_rate': c['rate'], 'min_unit_sp': None, 'max_unit_sp': None, 'projects': {},
-            'rate': c['rate'], 'install_hrs': c['install_hrs'], 'wiring_hrs': c['wiring_hrs'], 'uom': c.get('uom') or 'ea',
-            'image_path': c.get('image_path')})
-        g['image_path'] = g['image_path'] or c.get('image_path')
-        if c['quantity'] and c['rate']:
-            unit_sp = c['selling_price'] / c['quantity']
-            g['min_unit_sp'] = unit_sp if g['min_unit_sp'] is None else min(g['min_unit_sp'], unit_sp)
-            g['max_unit_sp'] = unit_sp if g['max_unit_sp'] is None else max(g['max_unit_sp'], unit_sp)
-        g['brand'] = g['brand'] or (c.get('brand') or '')
-        g['supplier'] = g['supplier'] or (c.get('supplier') or '')
-        g['quantity'] += c['quantity']
-        g['total_component_cost'] += c['total_component_cost']
-        g['labour_cost'] += c['labour_cost']
-        g['selling_price'] += c['selling_price']
-        g['min_rate'] = min(g['min_rate'], c['rate'])
-        g['max_rate'] = max(g['max_rate'], c['rate'])
-        g['projects'][p['id']] = p['name']
-    out = []
-    for g in groups.values():
-        g['projects'] = [{'id': k, 'name': v} for k, v in g['projects'].items()]
-        for k in ('total_component_cost', 'labour_cost', 'selling_price'):
-            g[k] = round(g[k], 2)
-        out.append(g)
-    return sorted(out, key=lambda x: -x['selling_price'])
+        c = calc_item(it, p['settings'])
+        out.setdefault(it['component_id'], []).append({
+            'item_id': it['id'], 'project_id': p['id'], 'project_name': p['name'], 'item_no': it['item_no'],
+            'quantity': it['quantity'], 'rate': it['rate'], 'selling_price': c['selling_price']})
+    return out
+
+def component_row(c: dict, usage: list) -> dict:
+    projects = {}
+    for u in usage:
+        projects[u['project_id']] = u['project_name']
+    return {**c, 'key': c['id'], 'item_id': c['id'], 'category': c.get('category') or categorise(c['description']),
+            'min_rate': c['rate'], 'max_rate': c['rate'], 'lines': len(usage),
+            'quantity': sum(u['quantity'] for u in usage),
+            'projects': [{'id': k, 'name': v} for k, v in projects.items()]}
+
+@api.get("/library")
+async def library(user: dict = Depends(current_user)):
+    comps = await db.components.find({}, {'_id': 0}).to_list(50000)
+    usage = await component_usage()
+    return sorted([component_row(c, usage.get(c['id'], [])) for c in comps], key=lambda r: (r['category'], r['description']))
+
+@api.get("/components/{cid}")
+async def get_component(cid: str, user: dict = Depends(current_user)):
+    c = await db.components.find_one({'id': cid}, {'_id': 0})
+    if not c:
+        raise HTTPException(404, "Component not found")
+    usage = (await component_usage([cid])).get(cid, [])
+    return {'component': component_row(c, usage), 'usage': usage}
+
+@api.post("/components")
+async def create_component(c: Component, user: dict = Depends(require_role('admin', 'estimator'))):
+    doc = c.model_dump()
+    doc['category'] = doc.get('category') or categorise(doc['description'])
+    await db.components.insert_one(dict(doc))
+    return component_row(doc, [])
+
+@api.put("/components/{cid}")
+async def update_component(cid: str, c: Component, user: dict = Depends(require_role('admin', 'estimator'))):
+    existing = await db.components.find_one({'id': cid}, {'_id': 0})
+    if not existing:
+        raise HTTPException(404, "Component not found")
+    doc = c.model_dump(exclude={'id', 'created_at', 'image_path'})
+    doc['updated_at'] = datetime.now(timezone.utc).isoformat()
+    doc['category'] = doc.get('category') or categorise(doc['description'])
+    await db.components.update_one({'id': cid}, {'$set': doc})
+    sync = {k: doc[k] for k in SYNC_FIELDS if k in doc}
+    res = await db.items.update_many({'component_id': cid}, {'$set': {**sync, 'updated_at': doc['updated_at']}})
+    return {'updated': res.matched_count}
+
+@api.delete("/components/{cid}")
+async def delete_component(cid: str, user: dict = Depends(require_role('admin', 'estimator'))):
+    await db.components.delete_one({'id': cid})
+    await db.items.update_many({'component_id': cid}, {'$set': {'component_id': None}})
+    return {'ok': True}
+
+async def migrate_components():
+    first = await db.components.count_documents({}) == 0
+    orphans = await db.items.find({'component_id': None}, {'_id': 0}).sort('updated_at', 1).to_list(50000)
+    groups = {}
+    for it in orphans:
+        name = ((it.get('part_no') or '').strip() or (it.get('description') or '').strip()).upper()
+        groups.setdefault((name, round(float(it.get('rate') or 0), 4)), []).append(it)
+    for its in groups.values():
+        cid = await create_component_from_item(its[-1])
+        await db.items.update_many({'id': {'$in': [i['id'] for i in its]}}, {'$set': {'component_id': cid}})
+    if first and groups:
+        made = set()
+        for c in await db.components.find({'description': {'$regex': ' \\+ '}}, {'_id': 0}).to_list(5000):
+            part1, part2 = [s.strip() for s in c['description'].split(' + ', 1)]
+            await db.components.update_one({'id': c['id']}, {'$set': {'description': part1, 'category': categorise(part1)}})
+            word = part1.split()[0] if part1.split() and part1.split()[0].upper() in ('SCHNEIDER', 'IPD') else ''
+            name = f"{word} {part2}".strip()
+            if name.upper() in made or await db.components.find_one({'description': name}):
+                continue
+            made.add(name.upper())
+            await db.components.insert_one(Component(description=name, brand=c.get('brand') or '', supplier=c.get('supplier') or '',
+                                                     rate=0, category=categorise(name)).model_dump())
+    if groups:
+        logger.info(f"Linked {len(orphans)} project lines to {len(groups)} library components")
 
 
 CATEGORY_RULES = [
@@ -340,6 +418,7 @@ CATEGORY_RULES = [
     ('Enclosures & Panels', ['ENCLOSURE', 'PANEL']),
     ('Meters', ['METER']),
     ('Surge Protection', ['SURGE']),
+    ('Trip Units', [' TM32D', ' TM63D', ' TM250D', 'TRIP UNIT']),
     ('Circuit Breakers', ['MCCB', 'MCB', 'RCBO']),
     ('Fuse Carriers', ['FUSE']),
     ('Current Transformers', ['CTS', ' CT ']),
@@ -354,15 +433,6 @@ def categorise(desc: str) -> str:
             return name
     return 'Other'
 
-@api.get("/public/components")
-async def public_components():
-    rows = await library(user={})
-    r2 = lambda v: round(v, 2) if v is not None else None
-    return [{'description': r['description'], 'brand': r['brand'], 'part_no': r['part_no'],
-             'supplier': r['supplier'], 'quantity': r['quantity'], 'category': categorise(r['description']),
-             'image_path': r['image_path'],
-             'min_price': r2(r['min_unit_sp']), 'max_price': r2(r['max_unit_sp'])}
-            for r in sorted(rows, key=lambda x: x['description'])]
 
 STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
 STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
@@ -393,22 +463,13 @@ def get_object(path: str):
     resp.raise_for_status()
     return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
 
-async def _matching_ids(src: dict):
-    part = (src.get('part_no') or '').strip()
-    if part:
-        match = {'part_no': {'$regex': f'^\\s*{re.escape(part)}\\s*$', '$options': 'i'}}
-    else:
-        match = {'description': src.get('description', '')}
-    return [d['id'] for d in await db.items.find(match, {'id': 1, '_id': 0}).to_list(50000)]
-
 def _is_image(data: bytes) -> bool:
     return data[:3] == b'\xff\xd8\xff' or data[:8] == b'\x89PNG\r\n\x1a\n' or data[:6] in (b'GIF87a', b'GIF89a') or (data[:4] == b'RIFF' and data[8:12] == b'WEBP')
 
-@api.post("/items/{iid}/image")
-async def upload_item_image(iid: str, file: UploadFile = File(...), user: dict = Depends(require_role('admin', 'estimator'))):
-    src = await db.items.find_one({'id': iid}, {'_id': 0})
-    if not src:
-        raise HTTPException(404, "Item not found")
+@api.post("/components/{cid}/image")
+async def upload_component_image(cid: str, file: UploadFile = File(...), user: dict = Depends(require_role('admin', 'estimator'))):
+    if not await db.components.find_one({'id': cid}):
+        raise HTTPException(404, "Component not found")
     ext = IMAGE_TYPES.get(file.content_type or '')
     if not ext:
         raise HTTPException(400, "Please upload a JPG, PNG, WEBP or GIF image")
@@ -421,18 +482,19 @@ async def upload_item_image(iid: str, file: UploadFile = File(...), user: dict =
     await db.files.insert_one({'id': str(uuid.uuid4()), 'storage_path': result['path'], 'original_filename': file.filename,
                                'content_type': file.content_type, 'size': result.get('size', len(data)), 'is_deleted': False,
                                'uploaded_by': user['id'], 'created_at': datetime.now(timezone.utc).isoformat()})
-    ids = await _matching_ids(src)
-    await db.items.update_many({'id': {'$in': ids}}, {'$set': {'image_path': result['path']}})
-    return {'image_path': result['path'], 'updated': len(ids)}
+    await db.components.update_one({'id': cid}, {'$set': {'image_path': result['path']}})
+    res = await db.items.update_many({'component_id': cid}, {'$set': {'image_path': result['path']}})
+    return {'image_path': result['path'], 'updated': res.matched_count}
 
-@api.delete("/items/{iid}/image")
-async def remove_item_image(iid: str, user: dict = Depends(require_role('admin', 'estimator'))):
-    src = await db.items.find_one({'id': iid}, {'_id': 0})
+@api.delete("/components/{cid}/image")
+async def remove_component_image(cid: str, user: dict = Depends(require_role('admin', 'estimator'))):
+    src = await db.components.find_one({'id': cid}, {'_id': 0})
     if not src:
-        raise HTTPException(404, "Item not found")
-    ids = await _matching_ids(src)
-    await db.items.update_many({'id': {'$in': ids}}, {'$set': {'image_path': None}})
-    if src.get('image_path') and not await db.items.find_one({'image_path': src['image_path']}):
+        raise HTTPException(404, "Component not found")
+    await db.components.update_one({'id': cid}, {'$set': {'image_path': None}})
+    await db.items.update_many({'component_id': cid}, {'$set': {'image_path': None}})
+    if src.get('image_path') and not await db.items.find_one({'image_path': src['image_path']}) \
+            and not await db.components.find_one({'image_path': src['image_path']}):
         await db.files.update_one({'storage_path': src['image_path']}, {'$set': {'is_deleted': True}})
     return {'ok': True}
 
@@ -444,30 +506,6 @@ async def serve_image(path: str):
     data, ctype = await asyncio.to_thread(get_object, path)
     return Response(content=data, media_type=rec.get('content_type') or ctype, headers={'Cache-Control': 'public, max-age=86400'})
 
-class ComponentUpdate(BaseModel):
-    description: str
-    brand: str = ''
-    part_no: str = ''
-    supplier: str = ''
-    rate: float = 0
-    install_hrs: float = 0
-    wiring_hrs: float = 0
-    quantities: dict = Field(default_factory=dict)
-
-@api.put("/items/{iid}/apply-all")
-async def apply_all(iid: str, body: ComponentUpdate, user: dict = Depends(require_role('admin', 'estimator'))):
-    src = await db.items.find_one({'id': iid}, {'_id': 0})
-    if not src:
-        raise HTTPException(404, "Item not found")
-    ids = await _matching_ids(src)
-    fields = body.model_dump(exclude={'quantities'})
-    fields['updated_at'] = datetime.now(timezone.utc).isoformat()
-    await db.items.update_many({'id': {'$in': ids}}, {'$set': fields})
-    for item_id, qty in body.quantities.items():
-        if item_id in ids:
-            await db.items.update_one({'id': item_id}, {'$set': {'quantity': float(qty)}})
-    return {'updated': len(ids)}
-
 @api.get("/items/{iid}/details")
 async def item_details(iid: str, user: dict = Depends(current_user)):
     it = await db.items.find_one({'id': iid}, {'_id': 0})
@@ -475,18 +513,10 @@ async def item_details(iid: str, user: dict = Depends(current_user)):
         raise HTTPException(404, "Item not found")
     projects = {p['id']: p for p in await db.projects.find({}, {'_id': 0}).to_list(1000)}
     proj = projects.get(it['project_id'])
-    part = (it.get('part_no') or '').strip()
-    match = {'part_no': part} if part else {'description': it.get('description', '')}
-    usage = []
-    for u in await db.items.find(match, {'_id': 0}).sort('item_no', 1).to_list(5000):
-        p = projects.get(u['project_id'])
-        if not p:
-            continue
-        c = calc_item(u, p['settings'])
-        usage.append({'item_id': u['id'], 'project_id': p['id'], 'project_name': p['name'],
-                      'item_no': u['item_no'], 'quantity': u['quantity'], 'selling_price': c['selling_price']})
-    return {'item': calc_item(it, proj['settings']), 'project_name': proj['name'],
-            'matched_by': 'part_no' if part else 'description', 'usage': usage}
+    cid = it.get('component_id')
+    comp = await db.components.find_one({'id': cid}, {'_id': 0}) if cid else None
+    usage = (await component_usage([cid])).get(cid, []) if cid else []
+    return {'item': calc_item(it, proj['settings']), 'project_name': proj['name'], 'component': comp, 'usage': usage}
 
 
 @api.delete("/items/{iid}")
@@ -653,7 +683,9 @@ async def import_excel(pid: str, file: UploadFile = File(...), user: dict = Depe
                 install_hrs=float(ws.cell(r, headers.get('install_hrs', 12)).value or 0) if 'install_hrs' in headers else 0,
                 wiring_hrs=float(ws.cell(r, headers.get('wiring_hrs', 13)).value or 0) if 'wiring_hrs' in headers else 0,
             )
-            await db.items.insert_one(it.model_dump())
+            doc = it.model_dump()
+            doc['component_id'] = await create_component_from_item(doc)
+            await db.items.insert_one(doc)
             next_no += 1; imported += 1
         except Exception as e:
             logger.warning(f"skip row {r}: {e}")
@@ -849,14 +881,19 @@ async def feed_status(user: dict = Depends(current_user)):
 @api.get("/feeds/prices")
 async def feed_prices(user: dict = Depends(current_user)):
     feeds = {d['part_no']: d for d in await db.supplier_prices.find({}, {'_id': 0}).to_list(50000)}
-    out = []
+    groups = {}
     for g in await library(user=user):
-        if not g['part_no']:
+        pn = (g['part_no'] or '').strip().upper()
+        if not pn:
             continue
-        out.append({'key': g['key'], 'item_id': g['item_id'], 'description': g['description'], 'brand': g['brand'],
-                    'part_no': g['part_no'], 'supplier': g['supplier'], 'quantity': g['quantity'],
-                    'min_rate': g['min_rate'], 'max_rate': g['max_rate'], 'feed': feeds.get(g['part_no'].upper())})
-    return sorted(out, key=lambda r: r['description'])
+        r = groups.setdefault(pn, {'key': pn, 'item_id': g['id'], 'description': g['description'], 'brand': g['brand'],
+                                   'part_no': g['part_no'], 'supplier': g['supplier'], 'quantity': 0, 'entries': 0,
+                                   'min_rate': g['rate'], 'max_rate': g['rate'], 'feed': feeds.get(pn)})
+        r['quantity'] += g['quantity']
+        r['entries'] += 1
+        r['min_rate'] = min(r['min_rate'], g['rate'])
+        r['max_rate'] = max(r['max_rate'], g['rate'])
+    return sorted(groups.values(), key=lambda r: r['description'])
 
 @api.post("/feeds/refresh", status_code=202)
 async def feed_refresh(background: BackgroundTasks, user: dict = Depends(require_role('admin', 'estimator'))):
@@ -871,21 +908,26 @@ async def feed_refresh(background: BackgroundTasks, user: dict = Depends(require
     return {'run_id': run_id, 'status': 'queued'}
 
 class ApplyPrice(BaseModel):
-    item_id: str
+    part_no: str
     price: float
 
 @api.post("/feeds/apply")
 async def feed_apply(body: ApplyPrice, user: dict = Depends(require_role('admin', 'estimator'))):
-    src = await db.items.find_one({'id': body.item_id}, {'_id': 0})
-    if not src or not (src.get('part_no') or '').strip():
-        raise HTTPException(404, "Component not found")
+    pn = body.part_no.strip()
+    if not pn:
+        raise HTTPException(400, "Part number required")
     if body.price <= 0:
         raise HTTPException(400, "Price must be greater than zero")
-    ids = await _matching_ids(src)
-    await db.items.update_many({'id': {'$in': ids}}, {'$set': {'rate': round(body.price, 4), 'updated_at': datetime.now(timezone.utc).isoformat()}})
-    await db.rate_changes.insert_one({'id': str(uuid.uuid4()), 'part_no': src['part_no'], 'old_rate': src.get('rate'), 'new_rate': body.price,
-                                      'source': 'supplier_feed', 'user_id': user['id'], 'at': datetime.now(timezone.utc).isoformat()})
-    return {'updated': len(ids)}
+    comps = await db.components.find({'part_no': {'$regex': f'^\\s*{re.escape(pn)}\\s*$', '$options': 'i'}}, {'_id': 0}).to_list(1000)
+    if not comps:
+        raise HTTPException(404, "Component not found")
+    now = datetime.now(timezone.utc).isoformat()
+    ids = [c['id'] for c in comps]
+    await db.components.update_many({'id': {'$in': ids}}, {'$set': {'rate': round(body.price, 4), 'updated_at': now}})
+    res = await db.items.update_many({'component_id': {'$in': ids}}, {'$set': {'rate': round(body.price, 4), 'updated_at': now}})
+    await db.rate_changes.insert_one({'id': str(uuid.uuid4()), 'part_no': pn, 'old_rates': [c['rate'] for c in comps], 'new_rate': body.price,
+                                      'source': 'supplier_feed', 'user_id': user['id'], 'at': now})
+    return {'updated': res.matched_count, 'library_entries': len(ids)}
 
 @api.post("/cron/supplier-feed", status_code=202)
 async def cron_supplier_feed(request: Request, background: BackgroundTasks, authorization: Optional[str] = Header(None),
@@ -1040,6 +1082,7 @@ async def seed():
                                    supplier=sup, quantity=qty, rate=rate, install_hrs=ins, wiring_hrs=wr)
                 await db.items.insert_one(it.model_dump())
         logger.info("Seed complete.")
+    await migrate_components()
 
 @app.on_event("shutdown")
 async def shutdown():

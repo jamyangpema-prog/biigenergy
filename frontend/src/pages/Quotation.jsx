@@ -69,7 +69,7 @@ export default function Quotation() {
           </div>
         </div>
 
-        <table className="w-full text-sm">
+        <div className="table-scroll table-dark"><table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-900 text-white text-xs uppercase tracking-wider">
               <th className="px-3 py-2 text-left w-12">#</th>
@@ -112,7 +112,7 @@ export default function Quotation() {
               <td className="px-3 py-3 fin text-right font-bold text-base" data-testid="total-inc-gst">{fmtAUD(q.total_inc_gst)}</td>
             </tr>
           </tfoot>
-        </table>
+        </table></div>
 
         {p.notes && <Section title="Notes" text={p.notes} />}
         {p.exclusions && <Section title="Exclusions" text={p.exclusions} />}

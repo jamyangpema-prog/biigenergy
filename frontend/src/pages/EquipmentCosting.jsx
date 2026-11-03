@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Plus, Copy, Trash2, ChevronDown, ChevronRight, Search, Download, Upload, FilePlus2, FileSpreadsheet, ArrowUpDown, Hash, Eye } from 'lucide-react';
-import { ComponentDetails } from '@/components/ComponentDetails';
+import { LineDetails } from '@/components/LineDetails';
 import { AddFromLibrary } from '@/components/AddFromLibrary';
 import { ProjectPicker } from '@/components/ProjectPicker';
 
@@ -116,7 +116,7 @@ export default function EquipmentCosting() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <ProjectPicker />
-          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mt-3">Component Rates</h1>
+          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mt-3">Costing</h1>
           <p className="text-sm text-slate-500">{current.description}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -147,7 +147,7 @@ export default function EquipmentCosting() {
           </div>
           <div className="text-xs text-slate-500">{filtered.length} of {items.length} shown</div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="table-scroll">
           <table className="w-full text-sm" data-testid="items-table">
             <thead>
               <tr className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -227,7 +227,7 @@ export default function EquipmentCosting() {
         </div>
       </Card>
 
-      <ComponentDetails itemId={detailId} onClose={() => setDetailId(null)} onSaved={loadItems} />
+      <LineDetails itemId={detailId} onClose={() => setDetailId(null)} onSaved={loadItems} />
       <AddFromLibrary open={showLib} onOpenChange={setShowLib} projectId={current.id} onAdded={loadItems} />
 
       <Dialog open={showNew} onOpenChange={setShowNew}>

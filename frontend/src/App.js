@@ -13,8 +13,7 @@ import Settings from '@/pages/Settings';
 import Quotation from '@/pages/Quotation';
 import Reports from '@/pages/Reports';
 import Users from '@/pages/Users';
-import Library from '@/pages/Library';
-import ComponentViewer from '@/pages/ComponentViewer';
+import ComponentLibrary from '@/pages/ComponentLibrary';
 import Projects from '@/pages/Projects';
 import SupplierPrices from '@/pages/SupplierPrices';
 
@@ -39,8 +38,6 @@ function App() {
         <Routes>
           <Route path="/" element={<Marketing />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/component-viewer" element={<ComponentViewer />} />
-          <Route path="/parts-catalogue" element={<ComponentViewer />} />
           <Route
             path="/app"
             element={<Protected><ProjectProvider><Shell /></ProjectProvider></Protected>}
@@ -51,9 +48,7 @@ function App() {
             <Route path="settings" element={<Settings />} />
             <Route path="quotation" element={<Quotation />} />
             <Route path="reports" element={<Reports />} />
-            <Route path="component-viewer" element={<Navigate to="/app/parts-catalogue" replace />} />
-            <Route path="parts-catalogue" element={<ComponentViewer inApp />} />
-            <Route path="library" element={<Library />} />
+            <Route path="library" element={<ComponentLibrary />} />
             <Route path="supplier-prices" element={<SupplierPrices />} />
             <Route path="users" element={<AdminOnly><Users /></AdminOnly>} />
           </Route>

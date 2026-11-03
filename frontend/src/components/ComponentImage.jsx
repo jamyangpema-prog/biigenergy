@@ -5,7 +5,7 @@ import { ImagePlus, Trash2, Loader2, ImageOff } from 'lucide-react';
 
 export const imageUrl = (path) => (path ? `${API}/images/${path}` : null);
 
-export function ComponentImage({ itemId, path, canEdit, onChanged }) {
+export function ComponentImage({ componentId, path, canEdit, onChanged }) {
   const ref = useRef(null);
   const [busy, setBusy] = useState(false);
 
@@ -14,8 +14,8 @@ export function ComponentImage({ itemId, path, canEdit, onChanged }) {
     const fd = new FormData(); fd.append('file', file);
     setBusy(true);
     try {
-      const { data } = await api.post(`/items/${itemId}/image`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success(`Picture added to ${data.updated} line${data.updated === 1 ? '' : 's'}`);
+      const { data } = await api.post(`/components/${componentId}/image`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      toast.success(`Picture saved${data.updated ? ` and added to ${data.updated} project line${data.updated === 1 ? '' : 's'}` : ''}`);
       onChanged?.();
     } catch (e) { toast.error(e?.response?.data?.detail || 'Upload failed'); }
     finally { setBusy(false); if (ref.current) ref.current.value = ''; }
@@ -23,7 +23,7 @@ export function ComponentImage({ itemId, path, canEdit, onChanged }) {
   const remove = async () => {
     if (!window.confirm('Remove this picture from the component everywhere?')) return;
     setBusy(true);
-    try { await api.delete(`/items/${itemId}/image`); toast.success('Picture removed'); onChanged?.(); }
+    try { await api.delete(`/components/${componentId}/image`); toast.success('Picture removed'); onChanged?.(); }
     catch { toast.error('Could not remove picture'); } finally { setBusy(false); }
   };
 

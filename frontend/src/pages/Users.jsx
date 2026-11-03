@@ -33,7 +33,7 @@ export default function Users() {
         <Button onClick={() => setShow(true)} className="bg-slate-900 hover:bg-slate-800 text-white" data-testid="btn-add-user"><UserPlus className="h-4 w-4 mr-2" /> Add user</Button>
       </div>
       <Card className="border-slate-200 overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="table-scroll"><table className="w-full text-sm">
           <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
             <tr><th className="px-4 py-3 text-left">Name</th><th className="px-4 py-3 text-left">Email</th><th className="px-4 py-3 text-left">Role</th><th className="w-16"></th></tr>
           </thead>
@@ -47,7 +47,7 @@ export default function Users() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </Card>
       <Dialog open={show} onOpenChange={setShow}>
         <DialogContent>

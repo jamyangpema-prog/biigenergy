@@ -106,7 +106,7 @@ export default function Projects() {
               </div>
               <div className="text-xs text-slate-400 mt-3">Updated {new Date(p.updated_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
               <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-1">
-                <Button size="sm" variant="outline" onClick={() => open(p, '/app/costing')} data-testid={`project-rates-${p.id}`}><Table2 className="h-3.5 w-3.5 mr-1" />Rates</Button>
+                <Button size="sm" variant="outline" onClick={() => open(p, '/app/costing')} data-testid={`project-rates-${p.id}`}><Table2 className="h-3.5 w-3.5 mr-1" />Costing</Button>
                 <Button size="sm" variant="outline" onClick={() => open(p, '/app/quotation')} data-testid={`project-quote-${p.id}`}><FileText className="h-3.5 w-3.5 mr-1" />Quote</Button>
                 <Button size="sm" variant="outline" onClick={() => open(p, '/app/settings')} data-testid={`project-settings-${p.id}`}><Settings2 className="h-3.5 w-3.5 mr-1" />Settings</Button>
                 <div className="flex-1" />

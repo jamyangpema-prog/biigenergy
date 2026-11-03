@@ -4,7 +4,7 @@ import { useProjects } from '@/lib/projects';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { ComponentDetails } from '@/components/ComponentDetails';
+import { LineDetails } from '@/components/LineDetails';
 import { ProjectPicker } from '@/components/ProjectPicker';
 import { useSearchParams } from 'react-router-dom';
 
@@ -108,7 +108,7 @@ export default function Reports() {
             </ResponsiveContainer>
           </Card>
           <Card className="mt-4 border-slate-200 overflow-hidden">
-            <table className="w-full text-sm">
+            <div className="table-scroll"><table className="w-full text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
                 <tr>
                   <th className="px-4 py-2 text-left">Project</th>
@@ -132,11 +132,11 @@ export default function Reports() {
                   );
                 })}
               </tbody>
-            </table>
+            </table></div>
           </Card>
         </TabsContent>
       </Tabs>
-      <ComponentDetails itemId={detailId} onClose={() => setDetailId(null)} onSaved={() => setRev((v) => v + 1)} />
+      <LineDetails itemId={detailId} onClose={() => setDetailId(null)} onSaved={() => setRev((v) => v + 1)} />
     </div>
   );
 }
@@ -147,7 +147,7 @@ function ReportTable({ items, columns, onRowClick }) {
   const fmt = (v, type) => type === 'aud' ? fmtAUD(v) : type === 'num' ? fmtNum(v, 2) : type === 'int' ? v : (v ?? '');
   return (
     <Card className="border-slate-200 overflow-hidden">
-      <div className="overflow-x-auto">
+      <div className="table-scroll">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
             <tr>{columns.map(([k, label, type]) => <th key={k} className={`px-3 py-2 ${type ? 'text-right' : 'text-left'}`}>{label}</th>)}</tr>

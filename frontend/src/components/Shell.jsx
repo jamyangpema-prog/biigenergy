@@ -1,19 +1,18 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
-import { LayoutDashboard, Table2, Settings, FileText, BarChart3, LogOut, Users, Boxes, Globe, TrendingUp, FolderKanban } from 'lucide-react';
+import { LayoutDashboard, Table2, Settings, FileText, BarChart3, LogOut, Users, Boxes, TrendingUp, FolderKanban } from 'lucide-react';
 
 const LOGO = 'https://customer-assets-jt897jd0.emergentagent.net/job_equipquote--13ttmu53/artifacts/57e4a1b4741c1c06_LOGO%20BE.png';
 
 const NAV = [
   { to: '/app', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/app/projects', label: 'Projects', icon: FolderKanban },
-  { to: '/app/costing', label: 'Component Rates', icon: Table2 },
+  { to: '/app/costing', label: 'Costing', icon: Table2 },
   { to: '/app/library', label: 'Component Library', icon: Boxes },
   { to: '/app/supplier-prices', label: 'Supplier Prices', icon: TrendingUp },
   { to: '/app/quotation', label: 'Quotation', icon: FileText },
   { to: '/app/reports', label: 'Reports', icon: BarChart3 },
-  { to: '/app/parts-catalogue', label: 'Parts Catalogue', icon: Globe },
   { to: '/app/settings', label: 'Costing Settings', icon: Settings },
 ];
 

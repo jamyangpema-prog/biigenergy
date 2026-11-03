@@ -50,9 +50,9 @@ function PriceRow({ r, canEdit, onApplied }) {
   const key = (r.supplier || '').trim().split(/\s+/)[0]?.toLowerCase();
   const mine = key ? (f?.offers || []).find((o) => o.distributor.toLowerCase().startsWith(key)) : null;
   const apply = async (price) => {
-    if (!window.confirm(`Set the rate for ${r.part_no} to ${fmtAUD(price)} on every line in every project?`)) return;
+    if (!window.confirm(`Set the library rate for ${r.part_no} to ${fmtAUD(price)}? It updates every project line linked to it.`)) return;
     setBusy(true);
-    try { const { data } = await api.post('/feeds/apply', { item_id: r.item_id, price }); toast.success(`Rate updated on ${data.updated} line${data.updated === 1 ? '' : 's'}`); onApplied(); }
+    try { const { data } = await api.post('/feeds/apply', { part_no: r.part_no, price }); toast.success(`Rate updated on ${data.updated} line${data.updated === 1 ? '' : 's'}`); onApplied(); }
     catch (e) { toast.error(e?.response?.data?.detail || 'Could not apply price'); } finally { setBusy(false); }
   };
   return (
@@ -156,7 +156,7 @@ export default function SupplierPrices() {
           </div>
           <div className="text-xs text-slate-500">{view.length} parts with part numbers</div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="table-scroll">
           <table className="w-full text-sm" data-testid="feed-table">
             <thead><tr className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
               <th className="w-8" /><th className="px-3 py-3 text-left">Component</th><th className="px-3 py-3 text-left">Part No</th>

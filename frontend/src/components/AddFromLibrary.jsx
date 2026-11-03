@@ -14,7 +14,7 @@ function PartRow({ r, projectId, onAdded }) {
     setBusy(true);
     try {
       await api.post(`/projects/${projectId}/items`, {
-        project_id: projectId, description: r.description, brand: r.brand, part_no: r.part_no, supplier: r.supplier,
+        project_id: projectId, component_id: r.id, description: r.description, brand: r.brand, part_no: r.part_no, supplier: r.supplier,
         quantity: parseFloat(qty) || 1, rate: r.rate, install_hrs: r.install_hrs, wiring_hrs: r.wiring_hrs, uom: r.uom, image_path: r.image_path,
       });
       toast.success(`Added ${r.description}`);
@@ -28,7 +28,7 @@ function PartRow({ r, projectId, onAdded }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium text-slate-900 truncate">{r.description}</div>
-        <div className="text-xs text-slate-500 truncate">{[r.brand, r.part_no, r.supplier].filter(Boolean).join(' · ') || '—'} · {fmtAUD(r.rate)}</div>
+        <div className="text-xs text-slate-500 truncate">{[r.category, r.brand, r.part_no, r.supplier].filter(Boolean).join(' · ') || '—'} · {r.rate ? `${fmtAUD(r.rate)} / ${r.uom || 'ea'}` : 'Rate needed'}</div>
         {inProject && <div className="text-[11px] text-emerald-700 inline-flex items-center gap-1"><Check className="h-3 w-3" />Already in this project</div>}
       </div>
       <input type="number" min="0" step="any" value={qty} onChange={(e) => setQty(e.target.value)} className="editable-cell !w-16 shrink-0 text-right" data-testid={`lib-add-qty-${r.key}`} />

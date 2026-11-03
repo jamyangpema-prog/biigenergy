@@ -107,7 +107,7 @@ export default function Dashboard() {
           <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">Projects</h3>
           <button onClick={() => nav('/app/projects')} className="text-xs text-slate-500 hover:text-slate-900 inline-flex items-center gap-1" data-testid="dash-all-projects">All projects <ArrowRight className="h-3 w-3" /></button>
         </div>
-        <table className="w-full text-sm">
+        <div className="table-scroll"><table className="w-full text-sm">
           <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
             <tr><th className="px-5 py-2 text-left">Project</th><th className="px-5 py-2 text-right">Items</th><th className="px-5 py-2 text-right">Component Cost</th><th className="px-5 py-2 text-right">Labour</th><th className="px-5 py-2 text-right">Selling Price</th><th className="w-10" /></tr>
           </thead>
@@ -123,7 +123,7 @@ export default function Dashboard() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </Card>
     </div>
   );
