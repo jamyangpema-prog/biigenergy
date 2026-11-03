@@ -44,6 +44,10 @@
 - Component Library entries: length_mm, width_mm, height_mm, thickness_mm; shown in library panel and Costing line details pop-up.
 - "Download" dropdown (PDF / Excel Sheet) on Component Library, Costing, Reports (current tab), Quotation. Endpoints: `/api/library/export`, `/api/projects/{pid}/export/{costing|report|quote}?fmt=pdf|xlsx[&tab=]`. Tested (iteration_4).
 - Note: projects DB-1 & 2, SMSD and RTO123 were deleted via the app by an admin session ~05:00 UTC on 2026-11-03 (not by tests). Their 142 item lines remain in `items_backup_20261103`; project records would need re-creating if restore is wanted.
+- Recovered those 3 projects (original IDs, items from `items_backup_20261103`, default settings, seed notes/terms) and relinked their 142 lines to the library (2 new library entries created where rates differed).
+- Public marketing site removed. `/` = modern login-only page; after login `/hub` = system selection (Costing System live; Document Control & Employee Tracking = coming soon). Sidebar shows "Costing System"; "All systems" link. BiiG Quote name removed.
+- Projects soft delete → "Recently deleted" bin on Projects page (admin): restore / delete forever. Endpoints `/api/trash/projects`, `/restore`, purge.
+- Quotation: right-side pane listing all projects.
 
 ## Backlog
 - P0: connect contact form to email delivery (Resend)

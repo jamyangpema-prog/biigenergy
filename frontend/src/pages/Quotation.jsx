@@ -20,7 +20,7 @@ export default function Quotation() {
 
   return (
     <div className="flex flex-col xl:flex-row gap-6 items-start" data-testid="quotation-layout">
-    <div className="space-y-5 flex-1 min-w-0 max-w-5xl" data-testid="quotation-page">
+    <div className="space-y-5 flex-1 min-w-0" data-testid="quotation-page">
       <div className="flex items-center justify-between">
         <div>
           <ProjectPicker />

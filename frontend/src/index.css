@@ -97,6 +97,8 @@ body {
 .table-scroll thead th { position: sticky; top: 0; z-index: 5; background-color: #F8FAFC; box-shadow: inset 0 -1px 0 #E2E8F0; }
 .table-scroll.table-dark thead th { background-color: #0F172A; color: #fff; box-shadow: none; }
 .table-scroll tfoot td { position: sticky; bottom: 0; z-index: 4; background-color: #F1F5F9; }
+.table-scroll.table-dark tfoot tr.bg-slate-900 td { background-color: #0F172A; }
+
 .table-scroll.table-dark tfoot td { position: static; }
 
 /* Hide number input spinners */
